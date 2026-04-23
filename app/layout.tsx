@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Zed Auto - ตลาดรถมือสองพรีเมียม",
   description:
-    "ซื้อขายรถมือสองคุณภาพ ตรวจสภาพแล้ว พร้อมไฟแนนซ์และบริการส่งมอบทั่วไทย"
+    "ซื้อขายรถมือสองคุณภาพ ตรวจสภาพแล้ว พร้อมไฟแนนซ์ บริการส่งมอบ และประสบการณ์ใช้งานที่เรียบง่าย"
 };
 
 export default function RootLayout({

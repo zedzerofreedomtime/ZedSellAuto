@@ -7,11 +7,9 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { BlogPostCard } from "@/components/resources/blog-post-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  blogPosts,
-  getBlogPostBySlug,
-  getRelatedBlogPosts
-} from "@/lib/resources-data";
+import { getBlogDetail } from "@/lib/api";
+
+export const dynamic = "force-dynamic";
 
 type BlogPostPageProps = {
   params: Promise<{
@@ -19,21 +17,16 @@ type BlogPostPageProps = {
   }>;
 };
 
-export function generateStaticParams() {
-  return blogPosts.map((post) => ({
-    slug: post.slug
-  }));
-}
-
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params;
-  const post = getBlogPostBySlug(slug);
+  const payload = await getBlogDetail(slug);
+  const post = payload?.post;
 
   if (!post) {
     notFound();
   }
 
-  const relatedPosts = getRelatedBlogPosts(slug, 3);
+  const relatedPosts = payload?.related ?? [];
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#faf8f3_0%,#f7f8fa_45%,#ffffff_100%)]">

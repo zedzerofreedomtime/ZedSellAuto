@@ -3,11 +3,9 @@ import Link from "next/link";
 
 import { CarCard } from "@/components/cars/car-card";
 import { Button } from "@/components/ui/button";
-import { vehicles } from "@/lib/car-data";
+import type { Vehicle } from "@/lib/car-data";
 
-export function FeaturedInventory() {
-  const featuredVehicles = vehicles.slice(0, 3);
-
+export function FeaturedInventory({ vehicles }: { vehicles: Vehicle[] }) {
   return (
     <section className="container py-9 lg:py-12" id="inventory">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -17,7 +15,7 @@ export function FeaturedInventory() {
             รถเด่นที่คัดมาให้วันนี้
           </h2>
         </div>
-        <Button variant="outline" className="w-full sm:w-auto" asChild>
+        <Button asChild className="w-full sm:w-auto" variant="outline">
           <Link href="/cars/all">
             ดูรถทั้งหมด
             <ArrowRight />
@@ -26,10 +24,11 @@ export function FeaturedInventory() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        {featuredVehicles.map((vehicle) => (
-          <CarCard key={vehicle.name} vehicle={vehicle} />
+        {vehicles.map((vehicle) => (
+          <CarCard key={vehicle.slug} vehicle={vehicle} />
         ))}
       </div>
     </section>
   );
 }
+

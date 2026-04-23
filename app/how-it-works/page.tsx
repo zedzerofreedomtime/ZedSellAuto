@@ -6,31 +6,19 @@ import { ResourceHero } from "@/components/resources/resource-hero";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  buyerExperience,
-  howItWorksSteps,
-  sellerExperience
-} from "@/lib/resources-data";
+import { getHowItWorksPageData } from "@/lib/api";
 
-const trustSignals = [
-  {
-    icon: ShieldCheck,
-    title: "ข้อมูลรถชัดเจน",
-    description: "ดูประวัติรถ ภาพจริง และข้อมูลสำคัญก่อนตัดสินใจ"
-  },
-  {
-    icon: Wallet,
-    title: "คุมงบได้ง่าย",
-    description: "มีเครื่องมือช่วยประเมินค่างวดและค่าใช้จ่ายรวม"
-  },
-  {
-    icon: CircleCheck,
-    title: "ปิดดีลเป็นขั้นตอน",
-    description: "ช่วยดูเรื่องนัดหมาย เอกสาร และการส่งมอบรถ"
-  }
-];
+export const dynamic = "force-dynamic";
 
-export default function HowItWorksPage() {
+const iconMap = {
+  "circle-check": CircleCheck,
+  "shield-check": ShieldCheck,
+  wallet: Wallet
+} as const;
+
+export default async function HowItWorksPage() {
+  const { buyer, seller, steps, trustSignals } = await getHowItWorksPageData();
+
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#faf8f3_0%,#f7f8fa_45%,#ffffff_100%)]">
       <SiteHeader backHref="/" backLabel="กลับหน้าแรก" />
@@ -40,13 +28,13 @@ export default function HowItWorksPage() {
           { href: "/pricing", label: "ดู Pricing", variant: "outline" },
           { href: "/blog", label: "อ่านบทความ", variant: "accent" }
         ]}
-        description="จากการค้นหารถจนถึงวันรับมอบ Zed Auto ออกแบบทุกขั้นตอนให้เรียบง่าย โปร่งใส และตัดสินใจได้มั่นใจขึ้นทั้งฝั่งผู้ซื้อและผู้ขาย"
+        description="จากการค้นหารถจนถึงวันรับมอบ Zed Auto ออกแบบทุกขั้นตอนให้เรียบง่าย โปร่งใส และตัดสินใจได้มั่นใจขึ้น"
         title="How it works"
       />
 
       <section className="container grid gap-4 pb-6 lg:grid-cols-3">
         {trustSignals.map((signal) => {
-          const Icon = signal.icon;
+          const Icon = iconMap[signal.icon as keyof typeof iconMap] ?? ShieldCheck;
 
           return (
             <Card className="bg-white" key={signal.title}>
@@ -73,7 +61,7 @@ export default function HowItWorksPage() {
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          {howItWorksSteps.map((step) => (
+          {steps.map((step) => (
             <Card className="bg-white" key={step.label}>
               <CardHeader>
                 <Badge className="w-fit" variant="success">
@@ -96,7 +84,7 @@ export default function HowItWorksPage() {
             <CardTitle className="pt-3 text-2xl">ซื้อรถได้มั่นใจขึ้นในทุกจุดสำคัญ</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {buyerExperience.map((item) => (
+            {buyer.map((item) => (
               <div className="flex gap-3 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3" key={item}>
                 <CircleCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
                 <p className="text-sm leading-7 text-zinc-700">{item}</p>
@@ -111,7 +99,7 @@ export default function HowItWorksPage() {
             <CardTitle className="pt-3 text-2xl">ขายรถง่ายขึ้นโดยไม่ต้องจัดการคนเดียว</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {sellerExperience.map((item) => (
+            {seller.map((item) => (
               <div className="flex gap-3 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3" key={item}>
                 <CircleCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
                 <p className="text-sm leading-7 text-zinc-700">{item}</p>

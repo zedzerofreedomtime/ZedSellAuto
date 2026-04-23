@@ -2,11 +2,14 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { BlogPostCard } from "@/components/resources/blog-post-card";
 import { ResourceHero } from "@/components/resources/resource-hero";
 import { Badge } from "@/components/ui/badge";
-import { blogPosts } from "@/lib/resources-data";
+import { getBlogPosts } from "@/lib/api";
 
-const [featuredPost, ...otherPosts] = blogPosts;
+export const dynamic = "force-dynamic";
 
-export default function BlogPage() {
+export default async function BlogPage() {
+  const posts = await getBlogPosts();
+  const [featuredPost, ...otherPosts] = posts;
+
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#faf8f3_0%,#f7f8fa_45%,#ffffff_100%)]">
       <SiteHeader backHref="/" backLabel="กลับหน้าแรก" />
@@ -16,22 +19,24 @@ export default function BlogPage() {
           { href: "/how-it-works", label: "How it works", variant: "outline" },
           { href: "/pricing", label: "Pricing", variant: "outline" }
         ]}
-        description="รวมบทความ คู่มือซื้อรถมือสอง เคล็ดลับเรื่องไฟแนนซ์ และมุมมองจากทีม Zed Auto ที่ช่วยให้การตัดสินใจซื้อขายรถง่ายขึ้น"
+        description="รวมบทความ คู่มือซื้อรถมือสอง เคล็ดลับเรื่องไฟแนนซ์ และมุมมองจากทีม Zed Auto"
         title="Blog"
       />
 
-      <section className="container py-2 lg:py-4">
-        <div>
-          <Badge variant="success">Featured story</Badge>
-          <h2 className="mt-3 text-3xl font-semibold tracking-normal text-zinc-950 sm:text-4xl">
-            บทความเด่นประจำสัปดาห์
-          </h2>
-        </div>
+      {featuredPost ? (
+        <section className="container py-2 lg:py-4">
+          <div>
+            <Badge variant="success">Featured story</Badge>
+            <h2 className="mt-3 text-3xl font-semibold tracking-normal text-zinc-950 sm:text-4xl">
+              บทความเด่นประจำสัปดาห์
+            </h2>
+          </div>
 
-        <div className="mt-6">
-          <BlogPostCard featured post={featuredPost} />
-        </div>
-      </section>
+          <div className="mt-6">
+            <BlogPostCard featured post={featuredPost} />
+          </div>
+        </section>
+      ) : null}
 
       <section className="container py-8 lg:py-12">
         <div>

@@ -5,7 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Vehicle } from "@/lib/car-data";
 
 export function MarketInsights({ vehicle }: { vehicle: Vehicle }) {
-  const averagePrice = Math.round(vehicle.numericPrice * 1.04);
+  const averagePrice =
+    vehicle.estimatedMarketPrice ?? Math.round(vehicle.numericPrice * 1.04);
+  const nearbyListingCount = vehicle.nearbyListingCount ?? 128;
+  const avgDaysOnMarket = vehicle.avgDaysOnMarket ?? 12;
 
   return (
     <section className="container pb-8">
@@ -50,8 +53,8 @@ export function MarketInsights({ vehicle }: { vehicle: Vehicle }) {
             </div>
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
               <Insight label="ราคาเฉลี่ยตลาด" value={formatBaht(averagePrice)} />
-              <Insight label="จำนวนรถใกล้เคียง" value="128 คัน" />
-              <Insight label="วันเฉลี่ยในตลาด" value="12 วัน" />
+              <Insight label="จำนวนรถใกล้เคียง" value={`${nearbyListingCount} คัน`} />
+              <Insight label="วันเฉลี่ยในตลาด" value={`${avgDaysOnMarket} วัน`} />
             </div>
           </CardContent>
         </Card>
@@ -76,3 +79,4 @@ function formatBaht(value: number) {
     style: "currency"
   }).format(value);
 }
+

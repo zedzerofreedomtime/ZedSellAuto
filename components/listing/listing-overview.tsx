@@ -1,7 +1,7 @@
-import { CalendarDays, HandCoins, MessageCircle, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 
+import { ListingActionPanel } from "@/components/listing/listing-action-panel";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import type { Vehicle } from "@/lib/car-data";
 
 export function ListingOverview({ vehicle }: { vehicle: Vehicle }) {
@@ -13,7 +13,7 @@ export function ListingOverview({ vehicle }: { vehicle: Vehicle }) {
             <Badge variant={vehicle.tone === "success" ? "success" : "warning"}>
               {vehicle.tag}
             </Badge>
-            <Badge variant="outline" className="bg-white">
+            <Badge className="bg-white" variant="outline">
               Certified
             </Badge>
           </div>
@@ -33,22 +33,14 @@ export function ListingOverview({ vehicle }: { vehicle: Vehicle }) {
           <p className="mt-1 text-sm text-muted-foreground">
             นัดทดลองขับหรือคุยกับทีมขายได้ทันที
           </p>
-          <div className="mt-4 grid gap-2">
-            <Button variant="premium">
-              <HandCoins />
-              เสนอราคา
-            </Button>
-            <Button variant="outline">
-              <CalendarDays />
-              นัดทดลองขับ
-            </Button>
-            <Button variant="outline">
-              <MessageCircle />
-              แชทกับผู้ขาย
-            </Button>
-          </div>
+          <ListingActionPanel
+            vehicleId={vehicle.id}
+            vehicleName={vehicle.name}
+            vehiclePrice={vehicle.numericPrice}
+          />
         </div>
       </div>
     </section>
   );
 }
+

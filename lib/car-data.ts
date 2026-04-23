@@ -8,7 +8,18 @@ export type CarCategorySlug =
 
 export type CarTone = "success" | "warning";
 
+export type CarCategory = {
+  count?: number;
+  description: string;
+  image: string;
+  slug: CarCategorySlug;
+  title: string;
+};
+
 export type Vehicle = {
+  avgDaysOnMarket?: number;
+  estimatedMarketPrice?: number;
+  id?: string;
   slug: string;
   name: string;
   year: string;
@@ -32,6 +43,10 @@ export type Vehicle = {
   owner: string;
   description: string;
   sellerName: string;
+  sellerEmailVerified?: boolean;
+  sellerPhoneVerified?: boolean;
+  sellerZedPayReady?: boolean;
+  nearbyListingCount?: number;
 };
 
 function unsplashPhoto(photoId: string, width = 1200, quality = 80) {
@@ -422,12 +437,7 @@ export const carCategories = [
     image:
       "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80"
   }
-] as const satisfies ReadonlyArray<{
-  slug: CarCategorySlug;
-  title: string;
-  description: string;
-  image: string;
-}>;
+] as const satisfies ReadonlyArray<CarCategory>;
 
 export function getVehiclesByCategory(category: CarCategorySlug) {
   if (category === "all") {

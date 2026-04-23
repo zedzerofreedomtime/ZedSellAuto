@@ -4,9 +4,13 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { carCategories, getCategoryCount } from "@/lib/car-data";
+import type { VehicleCategorySummary } from "@/lib/api";
 
-export function CategoriesSection() {
+export function CategoriesSection({
+  categories
+}: {
+  categories: VehicleCategorySummary[];
+}) {
   return (
     <section className="container py-9 lg:py-12" id="categories">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -16,7 +20,7 @@ export function CategoriesSection() {
             เลือกดูรถตามประเภท
           </h2>
         </div>
-        <Button variant="outline" className="w-full sm:w-auto" asChild>
+        <Button asChild className="w-full sm:w-auto" variant="outline">
           <Link href="/cars/all">
             รวมรถทุกประเภท
             <ArrowRight />
@@ -25,7 +29,7 @@ export function CategoriesSection() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {carCategories.map((category) => (
+        {categories.map((category) => (
           <Link
             className="group relative min-h-[220px] overflow-hidden rounded-lg border border-zinc-200 bg-zinc-950 shadow-line transition hover:-translate-y-1 hover:shadow-soft"
             href={`/cars/${category.slug}`}
@@ -42,7 +46,7 @@ export function CategoriesSection() {
             <div className="relative flex h-full min-h-[220px] flex-col justify-between p-5 text-white">
               <div className="flex items-center justify-between">
                 <Badge className="border-white/20 bg-white/14 text-white backdrop-blur">
-                  {getCategoryCount(category.slug)} คัน
+                  {category.count} คัน
                 </Badge>
                 <span className="flex h-10 w-10 items-center justify-center rounded-md border border-white/20 bg-white/12 backdrop-blur transition group-hover:bg-white group-hover:text-zinc-950">
                   <ArrowRight className="h-4 w-4" />

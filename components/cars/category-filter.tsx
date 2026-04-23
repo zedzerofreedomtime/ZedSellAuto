@@ -1,13 +1,16 @@
 import { SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 
-import {
-  carCategories,
-  type CarCategorySlug,
-  getCategoryCount
-} from "@/lib/car-data";
+import type { VehicleCategorySummary } from "@/lib/api";
+import type { CarCategorySlug } from "@/lib/car-data";
 
-export function CategoryFilter({ activeCategory }: { activeCategory: CarCategorySlug }) {
+export function CategoryFilter({
+  activeCategory,
+  categories
+}: {
+  activeCategory: CarCategorySlug;
+  categories: VehicleCategorySummary[];
+}) {
   return (
     <aside className="mt-8 rounded-lg border border-zinc-200 bg-zinc-50/70 p-4 text-zinc-950">
       <div className="flex items-center justify-between">
@@ -18,7 +21,7 @@ export function CategoryFilter({ activeCategory }: { activeCategory: CarCategory
         <SlidersHorizontal className="h-5 w-5 text-emerald-600" />
       </div>
       <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {carCategories.map((item) => (
+        {categories.map((item) => (
           <Link
             className={`flex min-h-12 items-center justify-between rounded-md border px-3 py-2 text-sm transition ${
               item.slug === activeCategory
@@ -29,9 +32,7 @@ export function CategoryFilter({ activeCategory }: { activeCategory: CarCategory
             key={item.slug}
           >
             <span>{item.title}</span>
-            <span className="text-xs opacity-70">
-              {getCategoryCount(item.slug)} คัน
-            </span>
+            <span className="text-xs opacity-70">{item.count} คัน</span>
           </Link>
         ))}
       </div>

@@ -1,18 +1,18 @@
-import Link from "next/link";
 import { Check, Sparkles } from "lucide-react";
+import Link from "next/link";
 
 import { SiteHeader } from "@/components/layout/site-header";
 import { ResourceHero } from "@/components/resources/resource-hero";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  pricingFaqs,
-  pricingHighlights,
-  pricingPlans
-} from "@/lib/resources-data";
+import { getPricingPageData } from "@/lib/api";
 
-export default function PricingPage() {
+export const dynamic = "force-dynamic";
+
+export default async function PricingPage() {
+  const { faqs, highlights, plans } = await getPricingPageData();
+
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#faf8f3_0%,#f7f8fa_45%,#ffffff_100%)]">
       <SiteHeader backHref="/" backLabel="กลับหน้าแรก" />
@@ -27,7 +27,7 @@ export default function PricingPage() {
       />
 
       <section className="container grid gap-4 pb-8 lg:grid-cols-3">
-        {pricingHighlights.map((item) => (
+        {highlights.map((item) => (
           <Card className="bg-white" key={item.label}>
             <CardContent className="p-6">
               <p className="text-sm text-zinc-500">{item.label}</p>
@@ -46,7 +46,7 @@ export default function PricingPage() {
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          {pricingPlans.map((plan) => (
+          {plans.map((plan) => (
             <Card className="bg-white" key={plan.title}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
@@ -54,9 +54,7 @@ export default function PricingPage() {
                     <CardTitle className="text-2xl">{plan.title}</CardTitle>
                     <p className="mt-3 text-3xl font-semibold text-zinc-950">{plan.price}</p>
                   </div>
-                  {plan.highlight ? (
-                    <Badge variant="success">{plan.highlight}</Badge>
-                  ) : null}
+                  {plan.highlight ? <Badge variant="success">{plan.highlight}</Badge> : null}
                 </div>
                 <p className="pt-3 text-sm leading-7 text-zinc-600">{plan.description}</p>
               </CardHeader>
@@ -83,8 +81,8 @@ export default function PricingPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {[
-              "การจัดหน้า listing ให้ข้อมูลอ่านง่ายและเชื่อถือได้",
-              "เครื่องมือช่วยดูราคาและประมาณค่างวดแบบเบื้องต้น",
+              "การจัดหน้า listing ให้ข้อมูลอ่านง่ายและน่าเชื่อถือ",
+              "เครื่องมือช่วยดูราคาและประมาณค่างวดเบื้องต้น",
               "ระบบนัดดูรถ ทดลองขับ และติดตามสถานะดีล",
               "ทีมช่วยประสานผู้ซื้อ ผู้ขาย และเอกสารสำคัญ"
             ].map((item) => (
@@ -130,7 +128,7 @@ export default function PricingPage() {
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
-            {pricingFaqs.map((faq) => (
+            {faqs.map((faq) => (
               <Card className="bg-zinc-50" key={faq.question}>
                 <CardHeader>
                   <CardTitle className="text-xl leading-snug">{faq.question}</CardTitle>

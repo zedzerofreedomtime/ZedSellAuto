@@ -6,13 +6,14 @@ import {
   Umbrella,
   Wrench
 } from "lucide-react";
+import Link from "next/link";
 
+import { FinanceApplicationForm } from "@/components/listing/finance-application-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import type { Vehicle } from "@/lib/car-data";
 
-const services = [
+const fallbackServices = [
   {
     icon: Truck,
     title: "Shipping",
@@ -39,7 +40,22 @@ const services = [
   }
 ];
 
-export function SellerServices({ vehicle }: { vehicle: Vehicle }) {
+export function SellerServices({
+  services = [],
+  vehicle
+}: {
+  services?: Array<{
+    title: string;
+  }>;
+  vehicle: Vehicle;
+}) {
+  const serviceItems =
+    services.length > 0
+      ? fallbackServices.filter((item) =>
+          services.some((service) => service.title === item.title)
+        )
+      : fallbackServices;
+
   return (
     <section className="container space-y-8 pb-8">
       <Card className="bg-white">
@@ -50,21 +66,25 @@ export function SellerServices({ vehicle }: { vehicle: Vehicle }) {
             <div className="mt-4 flex flex-wrap gap-3 text-sm">
               <span className="inline-flex items-center gap-1">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                ยืนยันอีเมล
+                {vehicle.sellerEmailVerified === false ? "ยังไม่ยืนยันอีเมล" : "ยืนยันอีเมล"}
               </span>
               <span className="inline-flex items-center gap-1">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                ยืนยันเบอร์โทร
+                {vehicle.sellerPhoneVerified === false ? "ยังไม่ยืนยันเบอร์โทร" : "ยืนยันเบอร์โทร"}
               </span>
               <span className="inline-flex items-center gap-1">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                Zed Pay พร้อมใช้
+                {vehicle.sellerZedPayReady === false ? "รอเปิดใช้ Zed Pay" : "Zed Pay พร้อมใช้"}
               </span>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline">เสนอราคา</Button>
-            <Button variant="accent">ติดต่อผู้ขาย</Button>
+            <Button asChild variant="outline">
+              <Link href="#lead-actions">เสนอราคา</Link>
+            </Button>
+            <Button asChild variant="accent">
+              <Link href="#finance-application">ยื่นขอไฟแนนซ์</Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -74,7 +94,7 @@ export function SellerServices({ vehicle }: { vehicle: Vehicle }) {
           <CardTitle className="text-2xl">บริการเสริม</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3">
-          {services.map((service) => (
+          {serviceItems.map((service) => (
             <div
               className="grid gap-4 rounded-lg border border-zinc-200 p-4 sm:grid-cols-[auto_1fr_auto] sm:items-center"
               key={service.title}
@@ -88,7 +108,7 @@ export function SellerServices({ vehicle }: { vehicle: Vehicle }) {
                   {service.description}
                 </p>
               </div>
-              <Button variant="outline" size="sm">
+              <Button size="sm" variant="outline">
                 {service.action}
               </Button>
             </div>
@@ -103,22 +123,15 @@ export function SellerServices({ vehicle }: { vehicle: Vehicle }) {
             คำนวณไฟแนนซ์
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-5 lg:grid-cols-[0.5fr_1fr]">
-          <div>
-            <p className="text-sm text-muted-foreground">ค่างวดประมาณ</p>
-            <p className="mt-2 text-4xl font-semibold">{vehicle.monthly}</p>
-            <p className="mt-1 text-sm text-muted-foreground">ระยะเวลา 72 เดือน</p>
-          </div>
-          <div className="grid gap-3">
-            <Input value={vehicle.numericPrice.toLocaleString("th-TH")} readOnly />
-            <Input value="20%" readOnly />
-            <Input value="เครดิตดี" readOnly />
-            <Button variant="premium" className="mt-2 w-full sm:w-fit">
-              ยื่นขอไฟแนนซ์
-            </Button>
-          </div>
+        <CardContent>
+          <FinanceApplicationForm
+            monthlyLabel={vehicle.monthly}
+            vehicleId={vehicle.id}
+            vehiclePrice={vehicle.numericPrice}
+          />
         </CardContent>
       </Card>
     </section>
   );
 }
+

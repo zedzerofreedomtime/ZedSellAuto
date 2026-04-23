@@ -8,9 +8,11 @@ export default function LoginPage() {
       alternateText="ยังไม่มีบัญชี?"
       description="เข้าสู่ระบบเพื่อบันทึกรถที่สนใจ นัดทดลองขับ ติดตามไฟแนนซ์ และจัดการทุกขั้นตอนการซื้อรถในที่เดียว"
       footerText="กรอกอีเมลและรหัสผ่านเพื่อเข้าสู่บัญชีของคุณ"
+      mode="login"
       passwordLabel="รหัสผ่าน"
       submitLabel="Login"
       title="เข้าสู่ระบบ"
     />
   );
 }
+

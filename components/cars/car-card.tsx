@@ -1,7 +1,8 @@
-import { Gauge, Heart, MapPin, Star } from "lucide-react";
+import { Gauge, MapPin, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { FavoriteButton } from "@/components/cars/favorite-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,14 +30,7 @@ export function CarCard({ vehicle }: { vehicle: Vehicle }) {
             {vehicle.year}
           </Badge>
         </div>
-        <Button
-          className="absolute right-3 top-3 bg-white/88 text-zinc-950 hover:bg-white"
-          size="icon"
-          variant="ghost"
-          aria-label={`บันทึก ${vehicle.name}`}
-        >
-          <Heart />
-        </Button>
+        <FavoriteButton vehicleId={vehicle.id} vehicleName={vehicle.name} />
       </div>
       <CardContent className="space-y-4 p-4">
         <div>
@@ -66,7 +60,7 @@ export function CarCard({ vehicle }: { vehicle: Vehicle }) {
             <p className="text-xl font-semibold">{vehicle.price}</p>
             <p className="text-sm text-muted-foreground">{vehicle.monthly}</p>
           </div>
-          <Button variant="outline" size="sm" asChild>
+          <Button asChild size="sm" variant="outline">
             <Link href={listingHref}>รายละเอียด</Link>
           </Button>
         </div>
@@ -74,3 +68,4 @@ export function CarCard({ vehicle }: { vehicle: Vehicle }) {
     </Card>
   );
 }
+

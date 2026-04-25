@@ -2,13 +2,12 @@ import { FileText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Vehicle } from "@/lib/car-data";
+import { formatCurrencyTHB } from "@/lib/formatters";
+import type { ApiVehicle } from "@/lib/api-types";
 
-export function MarketInsights({ vehicle }: { vehicle: Vehicle }) {
+export function MarketInsights({ vehicle }: { vehicle: ApiVehicle }) {
   const averagePrice =
-    vehicle.estimatedMarketPrice ?? Math.round(vehicle.numericPrice * 1.04);
-  const nearbyListingCount = vehicle.nearbyListingCount ?? 128;
-  const avgDaysOnMarket = vehicle.avgDaysOnMarket ?? 12;
+    vehicle.estimatedMarketPrice ?? Math.round(vehicle.priceTHB * 1.04);
 
   return (
     <section className="container pb-8">
@@ -52,9 +51,15 @@ export function MarketInsights({ vehicle }: { vehicle: Vehicle }) {
               </div>
             </div>
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-              <Insight label="ราคาเฉลี่ยตลาด" value={formatBaht(averagePrice)} />
-              <Insight label="จำนวนรถใกล้เคียง" value={`${nearbyListingCount} คัน`} />
-              <Insight label="วันเฉลี่ยในตลาด" value={`${avgDaysOnMarket} วัน`} />
+              <Insight label="ราคาเฉลี่ยตลาด" value={formatCurrencyTHB(averagePrice)} />
+              <Insight
+                label="จำนวนรถใกล้เคียง"
+                value={`${vehicle.nearbyListingCount ?? 128} คัน`}
+              />
+              <Insight
+                label="วันเฉลี่ยในตลาด"
+                value={`${vehicle.avgDaysOnMarket ?? 12} วัน`}
+              />
             </div>
           </CardContent>
         </Card>
@@ -71,12 +76,3 @@ function Insight({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-function formatBaht(value: number) {
-  return new Intl.NumberFormat("th-TH", {
-    currency: "THB",
-    maximumFractionDigits: 0,
-    style: "currency"
-  }).format(value);
-}
-

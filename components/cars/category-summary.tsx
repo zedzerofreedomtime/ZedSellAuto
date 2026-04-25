@@ -1,16 +1,10 @@
 import { CategoryFilter } from "@/components/cars/category-filter";
 import { Badge } from "@/components/ui/badge";
-import type { VehicleCategorySummary } from "@/lib/api";
-import type { CarCategorySlug } from "@/lib/car-data";
+import type { ApiVehicleCategory } from "@/lib/api-types";
 
 type CategorySummaryProps = {
-  categories: VehicleCategorySummary[];
-  category: {
-    count: number;
-    description: string;
-    slug: CarCategorySlug;
-    title: string;
-  };
+  categories: ApiVehicleCategory[];
+  category: ApiVehicleCategory;
 };
 
 export function CategorySummary({
@@ -42,4 +36,3 @@ export function CategorySummary({
     </section>
   );
 }
-

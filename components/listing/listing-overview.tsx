@@ -1,10 +1,11 @@
 import { MapPin } from "lucide-react";
 
-import { ListingActionPanel } from "@/components/listing/listing-action-panel";
+import { ListingContactCard } from "@/components/listing/listing-contact-card";
 import { Badge } from "@/components/ui/badge";
-import type { Vehicle } from "@/lib/car-data";
+import { formatCurrencyTHB, formatMonthlyPaymentTHB } from "@/lib/formatters";
+import type { ApiVehicle } from "@/lib/api-types";
 
-export function ListingOverview({ vehicle }: { vehicle: Vehicle }) {
+export function ListingOverview({ vehicle }: { vehicle: ApiVehicle }) {
   return (
     <section className="container py-7">
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -24,23 +25,14 @@ export function ListingOverview({ vehicle }: { vehicle: Vehicle }) {
             <MapPin className="h-4 w-4" />
             {vehicle.location}
           </p>
-          <p className="mt-5 text-3xl font-semibold">{vehicle.price}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{vehicle.monthly}</p>
+          <p className="mt-5 text-3xl font-semibold">{formatCurrencyTHB(vehicle.priceTHB)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {formatMonthlyPaymentTHB(vehicle.monthlyPaymentTHB)}
+          </p>
         </div>
 
-        <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-line">
-          <p className="text-sm font-semibold text-zinc-950">สนใจรถคันนี้</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            นัดทดลองขับหรือคุยกับทีมขายได้ทันที
-          </p>
-          <ListingActionPanel
-            vehicleId={vehicle.id}
-            vehicleName={vehicle.name}
-            vehiclePrice={vehicle.numericPrice}
-          />
-        </div>
+        <ListingContactCard vehicleId={vehicle.id} />
       </div>
     </section>
   );
 }
-

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { CalendarDays, ChevronLeft, Clock3 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -7,9 +8,8 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { BlogPostCard } from "@/components/resources/blog-post-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { getBlogDetail } from "@/lib/api";
-
-export const dynamic = "force-dynamic";
+import { getBlogPost } from "@/lib/api";
+import { formatIsoDateThai, formatReadTimeMinutes } from "@/lib/formatters";
 
 type BlogPostPageProps = {
   params: Promise<{
@@ -17,16 +17,33 @@ type BlogPostPageProps = {
   }>;
 };
 
+export async function generateMetadata({
+  params
+}: BlogPostPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const payload = await getBlogPost(slug);
+
+  if (!payload) {
+    return {
+      title: "ไม่พบบทความ | Zed Auto"
+    };
+  }
+
+  return {
+    title: `${payload.post.title} | Zed Auto`,
+    description: payload.post.excerpt
+  };
+}
+
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params;
-  const payload = await getBlogDetail(slug);
-  const post = payload?.post;
+  const payload = await getBlogPost(slug);
 
-  if (!post) {
+  if (!payload) {
     notFound();
   }
 
-  const relatedPosts = payload?.related ?? [];
+  const { post, related } = payload;
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#faf8f3_0%,#f7f8fa_45%,#ffffff_100%)]">
@@ -46,11 +63,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-zinc-500">
             <div className="inline-flex items-center gap-2">
               <CalendarDays className="h-4 w-4" />
-              {post.publishedAt}
+              {formatIsoDateThai(post.publishedAt)}
             </div>
             <div className="inline-flex items-center gap-2">
               <Clock3 className="h-4 w-4" />
-              {post.readTime}
+              {formatReadTimeMinutes(post.readTimeMinutes)}
             </div>
             <div>โดย {post.author}</div>
           </div>
@@ -62,7 +79,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               fill
               priority
               sizes="100vw"
-              src={post.image}
+              src={post.imageUrl}
             />
           </div>
         </div>
@@ -71,7 +88,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <section className="container grid gap-6 pb-8 lg:grid-cols-[minmax(0,0.72fr)_minmax(300px,0.28fr)]">
         <article className="rounded-lg border border-zinc-200 bg-white p-6 shadow-line sm:p-8">
           <div className="space-y-10">
-            {post.sections.map((section) => (
+            {(post.sections ?? []).map((section) => (
               <section key={section.heading}>
                 <h2 className="text-2xl font-semibold tracking-normal text-zinc-950">
                   {section.heading}
@@ -107,27 +124,29 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               <p className="text-sm font-medium text-zinc-500">หมวดบทความ</p>
               <p className="mt-3 text-xl font-semibold text-zinc-950">{post.category}</p>
               <p className="mt-3 text-sm leading-7 text-zinc-600">
-                ถ้าคุณกำลังหาข้อมูลก่อนซื้อรถหรือเทียบตัวเลือกที่ใช่ หมวดนี้จะช่วยให้เห็นภาพการตัดสินใจชัดขึ้น
+                ถ้าคุณกำลังหาข้อมูลก่อนซื้อรถหรือเทียบตัวเลือก หมวดนี้จะช่วยให้เห็นภาพการตัดสินใจชัดขึ้น
               </p>
             </CardContent>
           </Card>
         </div>
       </section>
 
-      <section className="container pb-12 lg:pb-16">
-        <div>
-          <Badge variant="outline">Related posts</Badge>
-          <h2 className="mt-3 text-3xl font-semibold tracking-normal text-zinc-950 sm:text-4xl">
-            บทความที่น่าอ่านต่อ
-          </h2>
-        </div>
+      {related.length > 0 ? (
+        <section className="container pb-12 lg:pb-16">
+          <div>
+            <Badge variant="outline">Related posts</Badge>
+            <h2 className="mt-3 text-3xl font-semibold tracking-normal text-zinc-950 sm:text-4xl">
+              บทความที่น่าอ่านต่อ
+            </h2>
+          </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          {relatedPosts.map((relatedPost) => (
-            <BlogPostCard key={relatedPost.slug} post={relatedPost} />
-          ))}
-        </div>
-      </section>
+          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            {related.map((relatedPost) => (
+              <BlogPostCard key={relatedPost.slug} post={relatedPost} />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

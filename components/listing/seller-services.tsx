@@ -6,55 +6,51 @@ import {
   Umbrella,
   Wrench
 } from "lucide-react";
-import Link from "next/link";
 
-import { FinanceApplicationForm } from "@/components/listing/finance-application-form";
+import { FinanceApplicationCard } from "@/components/listing/finance-application-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Vehicle } from "@/lib/car-data";
+import type { ApiVehicle, ApiVehicleDetailResponse } from "@/lib/api-types";
 
-const fallbackServices = [
-  {
-    icon: Truck,
-    title: "Shipping",
-    description: "จัดส่งรถถึงบ้านหรือนัดรับที่โชว์รูม พร้อมประกันระหว่างขนส่ง",
-    action: "ดูรายละเอียด"
+type SellerServicesProps = {
+  services?: ApiVehicleDetailResponse["services"];
+  vehicle: ApiVehicle;
+};
+
+const serviceMeta = {
+  Inspection: {
+    icon: Wrench,
+    title: "Inspection",
+    description: "นัดตรวจรถซ้ำโดยผู้เชี่ยวชาญก่อนวันรับรถได้",
+    action: "นัดตรวจ"
   },
-  {
+  Insurance: {
     icon: Umbrella,
     title: "Insurance",
     description: "เปรียบเทียบประกันชั้นนำและรับใบเสนอราคาแบบดิจิทัล",
     action: "ขอราคา"
   },
-  {
+  Protection: {
     icon: ShieldCheck,
     title: "Protection",
     description: "แพ็กเกจคุ้มครองเครื่องยนต์ เกียร์ และระบบไฟฟ้าเพิ่มเติม",
     action: "ดูแพ็กเกจ"
   },
-  {
-    icon: Wrench,
-    title: "Inspection",
-    description: "นัดตรวจรถซ้ำโดยผู้เชี่ยวชาญก่อนวันรับรถได้",
-    action: "นัดตรวจ"
+  Shipping: {
+    icon: Truck,
+    title: "Shipping",
+    description: "จัดส่งรถถึงบ้านหรือนัดรับที่โชว์รูมพร้อมประกันระหว่างขนส่ง",
+    action: "ดูรายละเอียด"
   }
-];
+} as const;
 
-export function SellerServices({
-  services = [],
-  vehicle
-}: {
-  services?: Array<{
-    title: string;
-  }>;
-  vehicle: Vehicle;
-}) {
-  const serviceItems =
-    services.length > 0
-      ? fallbackServices.filter((item) =>
-          services.some((service) => service.title === item.title)
-        )
-      : fallbackServices;
+const fallbackServices = Object.values(serviceMeta);
+
+export function SellerServices({ services, vehicle }: SellerServicesProps) {
+  const resolvedServices =
+    services
+      ?.map((service) => serviceMeta[service.title as keyof typeof serviceMeta])
+      .filter(Boolean) ?? fallbackServices;
 
   return (
     <section className="container space-y-8 pb-8">
@@ -64,27 +60,29 @@ export function SellerServices({
             <p className="text-sm text-muted-foreground">ผู้ขาย</p>
             <h2 className="mt-1 text-2xl font-semibold">{vehicle.sellerName}</h2>
             <div className="mt-4 flex flex-wrap gap-3 text-sm">
-              <span className="inline-flex items-center gap-1">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                {vehicle.sellerEmailVerified === false ? "ยังไม่ยืนยันอีเมล" : "ยืนยันอีเมล"}
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                {vehicle.sellerPhoneVerified === false ? "ยังไม่ยืนยันเบอร์โทร" : "ยืนยันเบอร์โทร"}
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                {vehicle.sellerZedPayReady === false ? "รอเปิดใช้ Zed Pay" : "Zed Pay พร้อมใช้"}
-              </span>
+              {vehicle.sellerEmailVerified ? (
+                <span className="inline-flex items-center gap-1">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  ยืนยันอีเมล
+                </span>
+              ) : null}
+              {vehicle.sellerPhoneVerified ? (
+                <span className="inline-flex items-center gap-1">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  ยืนยันเบอร์โทร
+                </span>
+              ) : null}
+              {vehicle.sellerZedPayReady ? (
+                <span className="inline-flex items-center gap-1">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  Zed Pay พร้อมใช้งาน
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="flex gap-2">
-            <Button asChild variant="outline">
-              <Link href="#lead-actions">เสนอราคา</Link>
-            </Button>
-            <Button asChild variant="accent">
-              <Link href="#finance-application">ยื่นขอไฟแนนซ์</Link>
-            </Button>
+            <Button variant="outline">เสนอราคา</Button>
+            <Button variant="accent">ติดต่อผู้ขาย</Button>
           </div>
         </CardContent>
       </Card>
@@ -94,7 +92,7 @@ export function SellerServices({
           <CardTitle className="text-2xl">บริการเสริม</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3">
-          {serviceItems.map((service) => (
+          {resolvedServices.map((service) => (
             <div
               className="grid gap-4 rounded-lg border border-zinc-200 p-4 sm:grid-cols-[auto_1fr_auto] sm:items-center"
               key={service.title}
@@ -124,14 +122,13 @@ export function SellerServices({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <FinanceApplicationForm
-            monthlyLabel={vehicle.monthly}
+          <FinanceApplicationCard
+            monthlyPaymentTHB={vehicle.monthlyPaymentTHB}
+            priceTHB={vehicle.priceTHB}
             vehicleId={vehicle.id}
-            vehiclePrice={vehicle.numericPrice}
           />
         </CardContent>
       </Card>
     </section>
   );
 }
-

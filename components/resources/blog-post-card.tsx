@@ -4,11 +4,12 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import type { BlogPost } from "@/lib/resources-data";
+import type { ApiBlogPost } from "@/lib/api-types";
+import { formatIsoDateThai, formatReadTimeMinutes } from "@/lib/formatters";
 
 type BlogPostCardProps = {
   featured?: boolean;
-  post: BlogPost;
+  post: ApiBlogPost;
 };
 
 export function BlogPostCard({ featured = false, post }: BlogPostCardProps) {
@@ -21,17 +22,25 @@ export function BlogPostCard({ featured = false, post }: BlogPostCardProps) {
               alt={post.title}
               className="h-full w-full object-cover transition duration-500 hover:scale-[1.02]"
               fill
-              sizes={featured ? "(min-width: 1024px) 52vw, 100vw" : "(min-width: 1024px) 33vw, 100vw"}
-              src={post.image}
+              sizes={
+                featured
+                  ? "(min-width: 1024px) 52vw, 100vw"
+                  : "(min-width: 1024px) 33vw, 100vw"
+              }
+              src={post.imageUrl}
             />
           </div>
 
           <CardContent className={featured ? "flex flex-col justify-center p-6 lg:p-8" : "p-5"}>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">{post.category}</Badge>
-              <span className="text-sm text-zinc-500">{post.publishedAt}</span>
+              <span className="text-sm text-zinc-500">
+                {formatIsoDateThai(post.publishedAt)}
+              </span>
               <span className="text-sm text-zinc-400">•</span>
-              <span className="text-sm text-zinc-500">{post.readTime}</span>
+              <span className="text-sm text-zinc-500">
+                {formatReadTimeMinutes(post.readTimeMinutes)}
+              </span>
             </div>
 
             <h2

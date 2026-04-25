@@ -59,6 +59,11 @@ export function ListingActionPanel({
     }
 
     const token = getStoredAccessToken();
+    if (!token) {
+      setError("กรุณาเข้าสู่ระบบก่อนส่งข้อมูลให้ผู้ขาย");
+      setStatus("");
+      return;
+    }
 
     startTransition(async () => {
       try {

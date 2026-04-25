@@ -11,18 +11,19 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { Vehicle } from "@/lib/car-data";
+import { formatMileageKM } from "@/lib/formatters";
+import type { ApiVehicle } from "@/lib/api-types";
 
-export function ListingDetails({ vehicle }: { vehicle: Vehicle }) {
+export function ListingDetails({ vehicle }: { vehicle: ApiVehicle }) {
   const detailItems = [
-    { icon: Gauge, label: "เลขไมล์", value: vehicle.mileage },
+    { icon: Gauge, label: "เลขไมล์", value: formatMileageKM(vehicle.mileageKM) },
     { icon: Settings2, label: "เกียร์", value: vehicle.transmission },
-    { icon: Fuel, label: "เชื้อเพลิง", value: vehicle.fuel },
-    { icon: Route, label: "ระบบขับเคลื่อน", value: vehicle.drive },
+    { icon: Fuel, label: "เชื้อเพลิง", value: vehicle.fuelType },
+    { icon: Route, label: "ระบบขับเคลื่อน", value: vehicle.driveTrain },
     { icon: BatteryCharging, label: "เครื่องยนต์", value: vehicle.engine },
     { icon: Paintbrush, label: "สีภายนอก", value: vehicle.exteriorColor },
     { icon: Armchair, label: "ภายใน", value: vehicle.interiorColor },
-    { icon: UserRound, label: "ประวัติผู้ครอบครอง", value: vehicle.owner }
+    { icon: UserRound, label: "ประวัติผู้ครอบครอง", value: vehicle.ownerSummary }
   ];
 
   return (

@@ -39,6 +39,11 @@ export function FinanceApplicationForm({
     }
 
     const token = getStoredAccessToken();
+    if (!token) {
+      setError("กรุณาเข้าสู่ระบบก่อนยื่นคำขอไฟแนนซ์");
+      setStatus("");
+      return;
+    }
 
     startTransition(async () => {
       try {

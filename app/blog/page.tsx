@@ -4,11 +4,10 @@ import { ResourceHero } from "@/components/resources/resource-hero";
 import { Badge } from "@/components/ui/badge";
 import { getBlogPosts } from "@/lib/api";
 
-export const dynamic = "force-dynamic";
-
 export default async function BlogPage() {
   const posts = await getBlogPosts();
-  const [featuredPost, ...otherPosts] = posts;
+  const featuredPost = posts.find((post) => post.isFeatured) ?? posts[0];
+  const otherPosts = posts.filter((post) => post.slug !== featuredPost?.slug);
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#faf8f3_0%,#f7f8fa_45%,#ffffff_100%)]">
@@ -16,10 +15,11 @@ export default async function BlogPage() {
 
       <ResourceHero
         actions={[
-          { href: "/how-it-works", label: "How it works", variant: "outline" },
-          { href: "/pricing", label: "Pricing", variant: "outline" }
+          { href: "/how-it-works", label: "วิธีใช้งาน", variant: "outline" },
+          { href: "/pricing", label: "ราคาและบริการ", variant: "outline" }
         ]}
-        description="รวมบทความ คู่มือซื้อรถมือสอง เคล็ดลับเรื่องไฟแนนซ์ และมุมมองจากทีม Zed Auto"
+        description="รวมบทความ คู่มือซื้อรถมือสอง เคล็ดลับเรื่องไฟแนนซ์ และมุมมองจากทีม Zed Auto ที่ช่วยให้การตัดสินใจซื้อขายรถง่ายขึ้น"
+        eyebrow="บทความ"
         title="Blog"
       />
 
@@ -38,20 +38,22 @@ export default async function BlogPage() {
         </section>
       ) : null}
 
-      <section className="container py-8 lg:py-12">
-        <div>
-          <Badge variant="outline">Latest posts</Badge>
-          <h2 className="mt-3 text-3xl font-semibold tracking-normal text-zinc-950 sm:text-4xl">
-            บทความล่าสุด
-          </h2>
-        </div>
+      {otherPosts.length > 0 ? (
+        <section className="container py-8 lg:py-12">
+          <div>
+            <Badge variant="outline">Latest posts</Badge>
+            <h2 className="mt-3 text-3xl font-semibold tracking-normal text-zinc-950 sm:text-4xl">
+              บทความล่าสุด
+            </h2>
+          </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          {otherPosts.map((post) => (
-            <BlogPostCard key={post.slug} post={post} />
-          ))}
-        </div>
-      </section>
+          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            {otherPosts.map((post) => (
+              <BlogPostCard key={post.slug} post={post} />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }

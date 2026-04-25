@@ -1,7 +1,7 @@
 import { CarCard } from "@/components/cars/car-card";
-import type { Vehicle } from "@/lib/car-data";
+import type { ApiVehicle } from "@/lib/api-types";
 
-export function RelatedVehicles({ vehicles }: { vehicles: Vehicle[] }) {
+export function RelatedVehicles({ vehicles }: { vehicles: ApiVehicle[] }) {
   if (vehicles.length === 0) {
     return null;
   }
@@ -16,7 +16,7 @@ export function RelatedVehicles({ vehicles }: { vehicles: Vehicle[] }) {
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {vehicles.map((vehicle) => (
-          <CarCard key={vehicle.slug} vehicle={vehicle} />
+          <CarCard key={vehicle.id} vehicle={vehicle} />
         ))}
       </div>
     </section>

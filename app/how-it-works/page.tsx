@@ -1,4 +1,9 @@
-import { ArrowRight, CircleCheck, ShieldCheck, Wallet } from "lucide-react";
+import {
+  ArrowRight,
+  CircleCheck,
+  ShieldCheck,
+  Wallet
+} from "lucide-react";
 import Link from "next/link";
 
 import { SiteHeader } from "@/components/layout/site-header";
@@ -6,9 +11,7 @@ import { ResourceHero } from "@/components/resources/resource-hero";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getHowItWorksPageData } from "@/lib/api";
-
-export const dynamic = "force-dynamic";
+import { getHowItWorksPayload } from "@/lib/api";
 
 const iconMap = {
   "circle-check": CircleCheck,
@@ -17,7 +20,7 @@ const iconMap = {
 } as const;
 
 export default async function HowItWorksPage() {
-  const { buyer, seller, steps, trustSignals } = await getHowItWorksPageData();
+  const payload = await getHowItWorksPayload();
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#faf8f3_0%,#f7f8fa_45%,#ffffff_100%)]">
@@ -25,15 +28,16 @@ export default async function HowItWorksPage() {
 
       <ResourceHero
         actions={[
-          { href: "/pricing", label: "ดู Pricing", variant: "outline" },
+          { href: "/pricing", label: "ดูราคาและบริการ", variant: "outline" },
           { href: "/blog", label: "อ่านบทความ", variant: "accent" }
         ]}
-        description="จากการค้นหารถจนถึงวันรับมอบ Zed Auto ออกแบบทุกขั้นตอนให้เรียบง่าย โปร่งใส และตัดสินใจได้มั่นใจขึ้น"
+        description="จากการค้นหารถจนถึงวันรับมอบ Zed Auto ออกแบบทุกขั้นตอนให้เรียบง่าย โปร่งใส และตัดสินใจได้มั่นใจขึ้นทั้งฝั่งผู้ซื้อและผู้ขาย"
+        eyebrow="วิธีใช้งาน"
         title="How it works"
       />
 
       <section className="container grid gap-4 pb-6 lg:grid-cols-3">
-        {trustSignals.map((signal) => {
+        {payload.trustSignals.map((signal) => {
           const Icon = iconMap[signal.icon as keyof typeof iconMap] ?? ShieldCheck;
 
           return (
@@ -61,7 +65,7 @@ export default async function HowItWorksPage() {
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          {steps.map((step) => (
+          {payload.steps.map((step) => (
             <Card className="bg-white" key={step.label}>
               <CardHeader>
                 <Badge className="w-fit" variant="success">
@@ -84,7 +88,7 @@ export default async function HowItWorksPage() {
             <CardTitle className="pt-3 text-2xl">ซื้อรถได้มั่นใจขึ้นในทุกจุดสำคัญ</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {buyer.map((item) => (
+            {payload.buyer.map((item) => (
               <div className="flex gap-3 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3" key={item}>
                 <CircleCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
                 <p className="text-sm leading-7 text-zinc-700">{item}</p>
@@ -99,7 +103,7 @@ export default async function HowItWorksPage() {
             <CardTitle className="pt-3 text-2xl">ขายรถง่ายขึ้นโดยไม่ต้องจัดการคนเดียว</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {seller.map((item) => (
+            {payload.seller.map((item) => (
               <div className="flex gap-3 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3" key={item}>
                 <CircleCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
                 <p className="text-sm leading-7 text-zinc-700">{item}</p>

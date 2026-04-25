@@ -1,17 +1,15 @@
-import { Check, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { Check, Sparkles } from "lucide-react";
 
 import { SiteHeader } from "@/components/layout/site-header";
 import { ResourceHero } from "@/components/resources/resource-hero";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPricingPageData } from "@/lib/api";
-
-export const dynamic = "force-dynamic";
+import { getPricingPayload } from "@/lib/api";
 
 export default async function PricingPage() {
-  const { faqs, highlights, plans } = await getPricingPageData();
+  const payload = await getPricingPayload();
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#faf8f3_0%,#f7f8fa_45%,#ffffff_100%)]">
@@ -19,15 +17,16 @@ export default async function PricingPage() {
 
       <ResourceHero
         actions={[
-          { href: "/how-it-works", label: "ดูขั้นตอนการใช้งาน", variant: "outline" },
+          { href: "/how-it-works", label: "ดูวิธีใช้งาน", variant: "outline" },
           { href: "/login", label: "เริ่มใช้งาน", variant: "accent" }
         ]}
-        description="โครงสร้างค่าบริการของ Zed Auto ถูกออกแบบให้เข้าใจง่าย จ่ายเท่าที่จำเป็น และเลือกเพิ่มเฉพาะบริการที่เหมาะกับประเภทดีลของคุณ"
+        description="โครงสร้างค่าบริการของ Zed Auto ถูกออกแบบให้เข้าใจง่าย จ่ายเท่าที่จำเป็น และเลือกเพิ่มเฉพาะบริการที่เหมาะกับดีลของคุณ"
+        eyebrow="ราคาและบริการ"
         title="Pricing"
       />
 
       <section className="container grid gap-4 pb-8 lg:grid-cols-3">
-        {highlights.map((item) => (
+        {payload.highlights.map((item) => (
           <Card className="bg-white" key={item.label}>
             <CardContent className="p-6">
               <p className="text-sm text-zinc-500">{item.label}</p>
@@ -46,15 +45,17 @@ export default async function PricingPage() {
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          {plans.map((plan) => (
+          {payload.plans.map((plan) => (
             <Card className="bg-white" key={plan.title}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle className="text-2xl">{plan.title}</CardTitle>
-                    <p className="mt-3 text-3xl font-semibold text-zinc-950">{plan.price}</p>
+                    <p className="mt-3 text-3xl font-semibold text-zinc-950">{plan.priceLabel}</p>
                   </div>
-                  {plan.highlight ? <Badge variant="success">{plan.highlight}</Badge> : null}
+                  {plan.highlight ? (
+                    <Badge variant="success">{plan.highlight}</Badge>
+                  ) : null}
                 </div>
                 <p className="pt-3 text-sm leading-7 text-zinc-600">{plan.description}</p>
               </CardHeader>
@@ -81,8 +82,8 @@ export default async function PricingPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {[
-              "การจัดหน้า listing ให้ข้อมูลอ่านง่ายและน่าเชื่อถือ",
-              "เครื่องมือช่วยดูราคาและประมาณค่างวดเบื้องต้น",
+              "หน้าประกาศรถที่อ่านง่ายและเชื่อถือได้",
+              "เครื่องมือช่วยประเมินค่างวดและต้นทุนรวมเบื้องต้น",
               "ระบบนัดดูรถ ทดลองขับ และติดตามสถานะดีล",
               "ทีมช่วยประสานผู้ซื้อ ผู้ขาย และเอกสารสำคัญ"
             ].map((item) => (
@@ -104,9 +105,9 @@ export default async function PricingPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {[
-              "คนที่อยากเห็นต้นทุนรวมก่อนคุยไฟแนนซ์จริง",
-              "เจ้าของรถที่อยากขายเร็วขึ้นแบบไม่ต้องจัดการเองทุกขั้นตอน",
-              "รถพรีเมียมหรือรถไฟฟ้าที่ต้องการการเล่าเรื่องและภาพลักษณ์ที่ดี",
+              "คนที่อยากเห็นยอดผ่อนก่อนคุยไฟแนนซ์จริง",
+              "เจ้าของรถที่อยากขายเร็วขึ้นโดยไม่ต้องจัดการทุกอย่างเอง",
+              "รถพรีเมียมหรือรถไฟฟ้าที่ต้องการการนำเสนอแบบมืออาชีพ",
               "ลูกค้าที่ต้องการบริการเสริมอย่างตรวจสภาพ ขนส่ง หรือรับฝากขาย"
             ].map((item) => (
               <div className="flex gap-3 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3" key={item}>
@@ -128,7 +129,7 @@ export default async function PricingPage() {
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
-            {faqs.map((faq) => (
+            {payload.faqs.map((faq) => (
               <Card className="bg-zinc-50" key={faq.question}>
                 <CardHeader>
                   <CardTitle className="text-xl leading-snug">{faq.question}</CardTitle>

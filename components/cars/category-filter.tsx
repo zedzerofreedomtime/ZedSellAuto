@@ -1,15 +1,14 @@
 import { SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 
-import type { VehicleCategorySummary } from "@/lib/api";
-import type { CarCategorySlug } from "@/lib/car-data";
+import type { ApiVehicleCategory } from "@/lib/api-types";
 
 export function CategoryFilter({
   activeCategory,
   categories
 }: {
-  activeCategory: CarCategorySlug;
-  categories: VehicleCategorySummary[];
+  activeCategory: string;
+  categories: ApiVehicleCategory[];
 }) {
   return (
     <aside className="mt-8 rounded-lg border border-zinc-200 bg-zinc-50/70 p-4 text-zinc-950">

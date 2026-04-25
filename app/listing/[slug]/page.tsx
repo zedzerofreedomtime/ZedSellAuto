@@ -10,8 +10,6 @@ import { RelatedVehicles } from "@/components/listing/related-vehicles";
 import { SellerServices } from "@/components/listing/seller-services";
 import { getVehicleDetail } from "@/lib/api";
 
-export const dynamic = "force-dynamic";
-
 type ListingPageProps = {
   params: Promise<{
     slug: string;
@@ -23,38 +21,45 @@ export async function generateMetadata({
 }: ListingPageProps): Promise<Metadata> {
   const { slug } = await params;
   const payload = await getVehicleDetail(slug);
-  const vehicle = payload?.vehicle;
 
-  if (!vehicle) {
+  if (!payload) {
     return {
       title: "ไม่พบรถคันนี้ | Zed Auto"
     };
   }
 
   return {
-    title: `${vehicle.year} ${vehicle.name} | Zed Auto`,
-    description: vehicle.description
+    title: `${payload.vehicle.year} ${payload.vehicle.name} | Zed Auto`,
+    description: payload.vehicle.description
   };
 }
 
 export default async function ListingPage({ params }: ListingPageProps) {
   const { slug } = await params;
   const payload = await getVehicleDetail(slug);
-  const vehicle = payload?.vehicle;
 
-  if (!vehicle) {
+  if (!payload) {
     notFound();
   }
 
+  const { related, services, vehicle } = payload;
+
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_50%,#ffffff_100%)]">
-      <SiteHeader backHref={`/cars/${vehicle.category}`} backLabel="กลับไปหน้าค้นหา" />
-      <ListingGallery gallery={vehicle.gallery} image={vehicle.image} name={vehicle.name} />
+      <SiteHeader
+        backHref={`/cars/${vehicle.categorySlug}`}
+        backLabel="กลับไปหน้าค้นหา"
+      />
+      <ListingGallery
+        gallery={vehicle.gallery}
+        image={vehicle.imageUrl}
+        name={vehicle.name}
+      />
       <ListingOverview vehicle={vehicle} />
       <ListingDetails vehicle={vehicle} />
       <MarketInsights vehicle={vehicle} />
-      <SellerServices services={payload?.services ?? []} vehicle={vehicle} />
-      <RelatedVehicles vehicles={payload?.related ?? []} />
+      <SellerServices services={services} vehicle={vehicle} />
+      <RelatedVehicles vehicles={related} />
     </main>
   );
 }

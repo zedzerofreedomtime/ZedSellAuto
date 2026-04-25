@@ -2,6 +2,7 @@ node_modules
 .next
 out
 dist
+.backend-inspect
 
 .env
 .env*.local

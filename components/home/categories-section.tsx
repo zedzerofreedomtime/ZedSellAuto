@@ -4,13 +4,19 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { VehicleCategorySummary } from "@/lib/api";
+import type { ApiVehicleCategory } from "@/lib/api-types";
+
+type CategoriesSectionProps = {
+  categories?: ApiVehicleCategory[];
+};
 
 export function CategoriesSection({
-  categories
-}: {
-  categories: VehicleCategorySummary[];
-}) {
+  categories = []
+}: CategoriesSectionProps) {
+  if (categories.length === 0) {
+    return null;
+  }
+
   return (
     <section className="container py-9 lg:py-12" id="categories">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -40,7 +46,7 @@ export function CategoriesSection({
               className="object-cover opacity-72 transition duration-500 group-hover:scale-105 group-hover:opacity-84"
               fill
               sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
-              src={category.image}
+              src={category.imageUrl}
             />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,9,11,0.08)_0%,rgba(9,9,11,0.82)_100%)]" />
             <div className="relative flex h-full min-h-[220px] flex-col justify-between p-5 text-white">

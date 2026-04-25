@@ -3,11 +3,11 @@ import Link from "next/link";
 
 import { CarCard } from "@/components/cars/car-card";
 import { Button } from "@/components/ui/button";
-import type { CarCategorySlug, Vehicle } from "@/lib/car-data";
+import type { ApiVehicle } from "@/lib/api-types";
 
 type CategoryInventoryProps = {
-  activeCategory: CarCategorySlug;
-  vehicles: Vehicle[];
+  activeCategory: string;
+  vehicles: ApiVehicle[];
 };
 
 export function CategoryInventory({
@@ -24,7 +24,7 @@ export function CategoryInventory({
           ทุกคันผ่านการตรวจสภาพและตรวจประวัติก่อนลงประกาศ
         </div>
         {shouldShowAllCarsButton ? (
-          <Button variant="premium" asChild>
+          <Button asChild variant="premium">
             <Link href="/cars/all">ดูรวมรถทุกประเภท</Link>
           </Button>
         ) : null}
@@ -32,7 +32,7 @@ export function CategoryInventory({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {vehicles.map((vehicle) => (
-          <CarCard key={vehicle.name} vehicle={vehicle} />
+          <CarCard key={vehicle.id} vehicle={vehicle} />
         ))}
       </div>
     </section>

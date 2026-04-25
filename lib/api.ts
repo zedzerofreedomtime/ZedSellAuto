@@ -1,451 +1,339 @@
 import {
+  blogPosts as fallbackBlogPosts,
+  buyerExperience as fallbackBuyerExperience,
+  howItWorksSteps as fallbackHowItWorksSteps,
+  pricingFaqs as fallbackPricingFaqs,
+  pricingHighlights as fallbackPricingHighlights,
+  pricingPlans as fallbackPricingPlans,
+  sellerExperience as fallbackSellerExperience
+} from "@/lib/resources-data";
+import {
   carCategories as fallbackCategories,
   getCategoryCount,
   getRelatedVehicles as getFallbackRelatedVehicles,
   getVehicleBySlug as getFallbackVehicleBySlug,
   getVehiclesByCategory as getFallbackVehiclesByCategory,
-  type CarCategory,
-  type CarCategorySlug,
-  type Vehicle,
-  vehicles as fallbackVehicles
+  vehicles as fallbackVehicles,
+  type Vehicle as FallbackVehicle
 } from "@/lib/car-data";
+import { buildApiUrl } from "@/lib/api-config";
 import {
-  blogPosts as fallbackBlogPosts,
-  buyerExperience as fallbackBuyerExperience,
-  getBlogPostBySlug as getFallbackBlogPostBySlug,
-  getRelatedBlogPosts as getFallbackRelatedBlogPosts,
-  howItWorksSteps as fallbackHowItWorksSteps,
-  pricingFaqs as fallbackPricingFaqs,
-  pricingHighlights as fallbackPricingHighlights,
-  pricingPlans as fallbackPricingPlans,
-  sellerExperience as fallbackSellerExperience,
-  type BlogPost,
-  type HowItWorksStep,
-  type PricingFaq,
-  type PricingPlan
-} from "@/lib/resources-data";
+  type ApiBlogDetailResponse,
+  type ApiBlogPost,
+  type ApiBlogPostsResponse,
+  type ApiHomePayload,
+  type ApiHowItWorksResponse,
+  type ApiPricingResponse,
+  type ApiVehicle,
+  type ApiVehicleCategoriesResponse,
+  type ApiVehicleCategory,
+  type ApiVehicleDetailResponse,
+  type ApiVehicleListResponse
+} from "@/lib/api-types";
 
-export type VehicleCategorySummary = CarCategory & {
-  count: number;
+type RequestOptions = {
+  allowNotFound?: boolean;
+  init?: RequestInit;
 };
 
-export type PricingHighlight = {
-  label: string;
-  value: string;
-};
+async function fetchApi<T>(path: string, options: RequestOptions = {}) {
+  const { allowNotFound = false, init } = options;
 
-export type HomePageData = {
-  categories: VehicleCategorySummary[];
-  featuredPost: BlogPost | null;
-  featuredVehicles: Vehicle[];
-};
+  try {
+    const response = await fetch(buildApiUrl(path), {
+      ...init,
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        ...(init?.headers ?? {})
+      }
+    });
 
-export type VehicleDetailData = {
-  related: Vehicle[];
-  services: Array<{
-    title: string;
-  }>;
-  vehicle: Vehicle;
-};
+    if (allowNotFound && response.status === 404) {
+      return null;
+    }
 
-export type BlogDetailData = {
-  post: BlogPost;
-  related: BlogPost[];
-};
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status}`);
+    }
 
-export type PricingPageData = {
-  faqs: PricingFaq[];
-  highlights: PricingHighlight[];
-  plans: PricingPlan[];
-};
-
-export type HowItWorksPageData = {
-  buyer: string[];
-  seller: string[];
-  steps: HowItWorksStep[];
-  trustSignals: Array<{
-    description: string;
-    icon: string;
-    title: string;
-  }>;
-};
-
-type ApiVehicleCategory = {
-  count: number;
-  description: string;
-  imageUrl: string;
-  slug: CarCategorySlug;
-  title: string;
-};
-
-type ApiVehicle = {
-  avgDaysOnMarket?: number;
-  categorySlug: Exclude<CarCategorySlug, "all">;
-  description: string;
-  driveTrain: string;
-  engine: string;
-  estimatedMarketPrice?: number;
-  exteriorColor: string;
-  fuelType: string;
-  gallery: string[];
-  id: string;
-  imageUrl: string;
-  interiorColor: string;
-  isFeatured?: boolean;
-  location: string;
-  mileageKM: number;
-  monthlyPaymentTHB: number;
-  name: string;
-  nearbyListingCount?: number;
-  ownerSummary: string;
-  priceTHB: number;
-  seats: number;
-  sellerEmailVerified?: boolean;
-  sellerName: string;
-  sellerPhoneVerified?: boolean;
-  sellerZedPayReady?: boolean;
-  slug: string;
-  tag: string;
-  tone: "success" | "warning";
-  transmission: string;
-  year: number;
-};
-
-type ApiBlogPost = {
-  author: string;
-  category: string;
-  excerpt: string;
-  imageUrl: string;
-  isFeatured?: boolean;
-  publishedAt: string;
-  readTimeMinutes: number;
-  sections?: Array<{
-    body: string[];
-    heading: string;
-  }>;
-  slug: string;
-  title: string;
-};
-
-type ApiResponseError = {
-  error?: string;
-};
-
-class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number
-  ) {
-    super(message);
+    return (await response.json()) as T;
+  } catch {
+    return null;
   }
 }
 
-function getServerApiBaseUrl() {
-  return (process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(
-    /\/$/,
-    ""
+function extractNumber(value: string) {
+  const raw = value.replace(/[^\d]/g, "");
+  return raw ? Number(raw) : 0;
+}
+
+function normalizeGallery(images: string[], fallbackImage: string) {
+  return images.length > 0 ? images : [fallbackImage];
+}
+
+function ensureAllCategory(categories: ApiVehicleCategory[]) {
+  if (categories.some((category) => category.slug === "all")) {
+    return categories;
+  }
+
+  const totalCount = categories.reduce(
+    (sum, category) => sum + (category.count || 0),
+    0
   );
+
+  const imageUrl =
+    categories[0]?.imageUrl ??
+    fallbackCategories[0]?.image ??
+    fallbackVehicles[0]?.image;
+
+  return [
+    {
+      slug: "all",
+      title: "รวมรถทุกประเภท",
+      description: "ดูรถมือสองทั้งหมดที่ผ่านการคัดเกรดจาก Zed Auto",
+      imageUrl,
+      count: totalCount
+    },
+    ...categories
+  ];
 }
 
-async function fetchJson<T>(path: string) {
-  const baseUrl = getServerApiBaseUrl();
-
-  if (!baseUrl) {
-    throw new Error("Missing API_BASE_URL or NEXT_PUBLIC_API_BASE_URL in .env");
-  }
-
-  const response = await fetch(`${baseUrl}${path}`, {
-    cache: "no-store"
-  });
-
-  const text = await response.text();
-  const payload = text ? (JSON.parse(text) as T | ApiResponseError) : null;
-
-  if (!response.ok) {
-    const message =
-      payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
-        ? payload.error
-        : `Request failed with status ${response.status}`;
-
-    throw new ApiError(message, response.status);
-  }
-
-  return payload as T;
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("th-TH", {
-    style: "currency",
-    currency: "THB",
-    maximumFractionDigits: 0
-  }).format(value);
-}
-
-function formatInteger(value: number) {
-  return new Intl.NumberFormat("th-TH", {
-    maximumFractionDigits: 0
-  }).format(value);
-}
-
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat("th-TH", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(date));
-}
-
-function mapApiVehicle(vehicle: ApiVehicle): Vehicle {
+function toApiVehicle(vehicle: FallbackVehicle): ApiVehicle {
   return {
-    id: vehicle.id,
+    id: vehicle.slug,
     slug: vehicle.slug,
+    categorySlug: vehicle.category,
     name: vehicle.name,
-    year: String(vehicle.year),
-    price: formatCurrency(vehicle.priceTHB),
-    numericPrice: vehicle.priceTHB,
-    monthly: `${formatCurrency(vehicle.monthlyPaymentTHB)}/เดือน`,
+    year: Number(vehicle.year),
+    priceTHB: vehicle.numericPrice,
+    monthlyPaymentTHB: extractNumber(vehicle.monthly),
     location: vehicle.location,
-    mileage: `${formatInteger(vehicle.mileageKM)} กม.`,
-    fuel: vehicle.fuelType,
+    mileageKM: extractNumber(vehicle.mileage),
+    fuelType: vehicle.fuel,
     tag: vehicle.tag,
     tone: vehicle.tone,
-    category: vehicle.categorySlug,
-    image: vehicle.imageUrl,
-    gallery: vehicle.gallery,
+    imageUrl: vehicle.image,
+    gallery: normalizeGallery(vehicle.gallery, vehicle.image),
     transmission: vehicle.transmission,
-    drive: vehicle.driveTrain,
+    driveTrain: vehicle.drive,
     engine: vehicle.engine,
     exteriorColor: vehicle.exteriorColor,
     interiorColor: vehicle.interiorColor,
-    seats: `${vehicle.seats} ที่นั่ง`,
-    owner: vehicle.ownerSummary,
+    seats: extractNumber(vehicle.seats),
+    ownerSummary: vehicle.owner,
     description: vehicle.description,
     sellerName: vehicle.sellerName,
-    sellerEmailVerified: vehicle.sellerEmailVerified,
-    sellerPhoneVerified: vehicle.sellerPhoneVerified,
-    sellerZedPayReady: vehicle.sellerZedPayReady,
-    estimatedMarketPrice: vehicle.estimatedMarketPrice,
-    nearbyListingCount: vehicle.nearbyListingCount,
-    avgDaysOnMarket: vehicle.avgDaysOnMarket
+    sellerEmailVerified: true,
+    sellerPhoneVerified: true,
+    sellerZedPayReady: true,
+    isFeatured: true,
+    estimatedMarketPrice: Math.round(vehicle.numericPrice * 1.04),
+    nearbyListingCount: 128,
+    avgDaysOnMarket: 12
   };
 }
 
-function mapApiBlogPost(post: ApiBlogPost): BlogPost {
+function toApiCategory(category: (typeof fallbackCategories)[number]): ApiVehicleCategory {
   return {
-    author: post.author,
-    category: post.category,
-    excerpt: post.excerpt,
-    image: post.imageUrl,
-    publishedAt: formatDate(post.publishedAt),
-    readTime: `${post.readTimeMinutes} นาที`,
-    sections: post.sections ?? [],
-    slug: post.slug,
-    title: post.title
+    slug: category.slug,
+    title: category.title,
+    description: category.description,
+    imageUrl: category.image,
+    count: getCategoryCount(category.slug)
   };
 }
 
-function fallbackCategorySummary(): VehicleCategorySummary[] {
-  return fallbackCategories.map((category) => ({
-    ...category,
-    count: getCategoryCount(category.slug)
-  }));
+function toApiBlogPost(post: (typeof fallbackBlogPosts)[number]): ApiBlogPost {
+  return {
+    slug: post.slug,
+    category: post.category,
+    title: post.title,
+    excerpt: post.excerpt,
+    imageUrl: post.image,
+    publishedAt: post.publishedAt,
+    readTimeMinutes: extractNumber(post.readTime),
+    author: post.author,
+    sections: post.sections,
+    isFeatured: false
+  };
 }
 
-export async function getHomePageData(): Promise<HomePageData> {
-  try {
-    const payload = await fetchJson<{
-      categories: ApiVehicleCategory[];
-      featuredPost?: ApiBlogPost | null;
-      featuredVehicles: ApiVehicle[];
-    }>("/home");
+export async function getHomePayload(): Promise<ApiHomePayload> {
+  const payload = await fetchApi<Partial<ApiHomePayload>>("/home");
+  const fallbackPayload = {
+    featuredVehicles: fallbackVehicles.slice(0, 4).map(toApiVehicle),
+    categories: ensureAllCategory(fallbackCategories.map(toApiCategory)),
+    featuredPost: fallbackBlogPosts[0] ? toApiBlogPost(fallbackBlogPosts[0]) : undefined
+  } satisfies ApiHomePayload;
 
-    return {
-      categories: payload.categories.map((category) => ({
-        slug: category.slug,
-        title: category.title,
-        description: category.description,
-        image: category.imageUrl,
-        count: category.count
-      })),
-      featuredVehicles: payload.featuredVehicles.map(mapApiVehicle),
-      featuredPost: payload.featuredPost ? mapApiBlogPost(payload.featuredPost) : null
-    };
-  } catch {
-    return {
-      categories: fallbackCategorySummary(),
-      featuredVehicles: fallbackVehicles.slice(0, 3),
-      featuredPost: fallbackBlogPosts[0] ?? null
-    };
+  if (!payload) {
+    return fallbackPayload;
   }
+
+  return {
+    featuredVehicles: payload.featuredVehicles ?? fallbackPayload.featuredVehicles,
+    categories: ensureAllCategory(payload.categories ?? fallbackPayload.categories),
+    featuredPost: payload.featuredPost ?? fallbackPayload.featuredPost
+  };
 }
 
-export async function getVehicleCategories(): Promise<VehicleCategorySummary[]> {
-  try {
-    const payload = await fetchJson<{
-      categories: ApiVehicleCategory[];
-    }>("/vehicles/categories");
+export async function getVehicleCategories(): Promise<ApiVehicleCategory[]> {
+  const payload = await fetchApi<ApiVehicleCategoriesResponse>("/vehicles/categories");
 
-    return payload.categories.map((category) => ({
-      slug: category.slug,
-      title: category.title,
-      description: category.description,
-      image: category.imageUrl,
-      count: category.count
+  return ensureAllCategory(
+    payload?.categories ?? fallbackCategories.map(toApiCategory)
+  );
+}
+
+export async function getVehicles(category?: string, featuredOnly = false): Promise<ApiVehicle[]> {
+  const query = new URLSearchParams();
+
+  if (category && category !== "all") {
+    query.set("category", category);
+  }
+
+  if (featuredOnly) {
+    query.set("featured", "true");
+  }
+
+  const payload = await fetchApi<ApiVehicleListResponse>(
+    `/vehicles${query.toString() ? `?${query.toString()}` : ""}`
+  );
+
+  if (payload?.vehicles) {
+    return payload.vehicles.map((vehicle) => ({
+      ...vehicle,
+      gallery: normalizeGallery(vehicle.gallery, vehicle.imageUrl)
     }));
-  } catch {
-    return fallbackCategorySummary();
   }
+
+  const source =
+    category && category !== "all"
+      ? getFallbackVehiclesByCategory(
+          category as Parameters<typeof getFallbackVehiclesByCategory>[0]
+        )
+      : fallbackVehicles;
+
+  return (featuredOnly ? source.slice(0, 4) : source).map(toApiVehicle);
 }
 
-export async function getVehicles(category: CarCategorySlug = "all") {
-  try {
-    const searchParams = new URLSearchParams();
-    if (category !== "all") {
-      searchParams.set("category", category);
-    }
+export async function getVehicleDetail(slug: string) {
+  const payload = await fetchApi<ApiVehicleDetailResponse>(`/vehicles/${slug}`, {
+    allowNotFound: true
+  });
 
-    const payload = await fetchJson<{
-      vehicles: ApiVehicle[];
-    }>(`/vehicles${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`);
-
-    return payload.vehicles.map(mapApiVehicle);
-  } catch {
-    return getFallbackVehiclesByCategory(category);
-  }
-}
-
-export async function getVehicleDetail(slug: string): Promise<VehicleDetailData | null> {
-  try {
-    const payload = await fetchJson<{
-      related: ApiVehicle[];
-      services: Array<{
-        title: string;
-      }>;
-      vehicle: ApiVehicle;
-    }>(`/vehicles/${slug}`);
-
+  if (payload) {
     return {
-      vehicle: mapApiVehicle(payload.vehicle),
-      related: payload.related.map(mapApiVehicle),
-      services: payload.services
-    };
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      return null;
-    }
-
-    const vehicle = getFallbackVehicleBySlug(slug);
-    if (!vehicle) {
-      return null;
-    }
-
-    return {
-      vehicle,
-      related: getFallbackRelatedVehicles(vehicle, 3),
-      services: [{ title: "Shipping" }, { title: "Insurance" }, { title: "Protection" }, { title: "Inspection" }]
+      ...payload,
+      vehicle: {
+        ...payload.vehicle,
+        gallery: normalizeGallery(payload.vehicle.gallery, payload.vehicle.imageUrl)
+      },
+      related: payload.related.map((vehicle) => ({
+        ...vehicle,
+        gallery: normalizeGallery(vehicle.gallery, vehicle.imageUrl)
+      }))
     };
   }
+
+  const vehicle = getFallbackVehicleBySlug(slug);
+  if (!vehicle) {
+    return null;
+  }
+
+  return {
+    vehicle: toApiVehicle(vehicle),
+    related: getFallbackRelatedVehicles(vehicle, 3).map(toApiVehicle),
+    services: [
+      { title: "Shipping" },
+      { title: "Insurance" },
+      { title: "Protection" },
+      { title: "Inspection" }
+    ]
+  } satisfies ApiVehicleDetailResponse;
 }
 
 export async function getBlogPosts() {
-  try {
-    const payload = await fetchJson<{
-      posts: ApiBlogPost[];
-    }>("/blog/posts");
-
-    return payload.posts.map(mapApiBlogPost);
-  } catch {
-    return fallbackBlogPosts;
-  }
+  const payload = await fetchApi<ApiBlogPostsResponse>("/blog/posts");
+  return payload?.posts ?? fallbackBlogPosts.map(toApiBlogPost);
 }
 
-export async function getBlogDetail(slug: string): Promise<BlogDetailData | null> {
-  try {
-    const payload = await fetchJson<{
-      post: ApiBlogPost;
-      related: ApiBlogPost[];
-    }>(`/blog/posts/${slug}`);
+export async function getBlogPost(slug: string) {
+  const payload = await fetchApi<ApiBlogDetailResponse>(`/blog/posts/${slug}`, {
+    allowNotFound: true
+  });
 
-    return {
-      post: mapApiBlogPost(payload.post),
-      related: payload.related.map(mapApiBlogPost)
-    };
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      return null;
-    }
-
-    const post = getFallbackBlogPostBySlug(slug);
-    if (!post) {
-      return null;
-    }
-
-    return {
-      post,
-      related: getFallbackRelatedBlogPosts(slug, 3)
-    };
+  if (payload) {
+    return payload;
   }
+
+  const post = fallbackBlogPosts.find((item) => item.slug === slug);
+  if (!post) {
+    return null;
+  }
+
+  const related = fallbackBlogPosts
+    .filter((item) => item.slug !== slug)
+    .slice(0, 3)
+    .map(toApiBlogPost);
+
+  return {
+    post: toApiBlogPost(post),
+    related
+  } satisfies ApiBlogDetailResponse;
 }
 
-export async function getPricingPageData(): Promise<PricingPageData> {
-  try {
-    const payload = await fetchJson<{
-      faqs: PricingFaq[];
-      highlights: PricingHighlight[];
-      plans: Array<{
-        description: string;
-        features: string[];
-        highlight?: string;
-        priceLabel: string;
-        title: string;
-      }>;
-    }>("/resources/pricing");
+export async function getPricingPayload(): Promise<ApiPricingResponse> {
+  const payload = await fetchApi<ApiPricingResponse>("/resources/pricing");
 
-    return {
-      highlights: payload.highlights,
-      plans: payload.plans.map((plan) => ({
-        title: plan.title,
-        description: plan.description,
-        features: plan.features,
-        highlight: plan.highlight,
-        price: plan.priceLabel
-      })),
-      faqs: payload.faqs
-    };
-  } catch {
-    return {
-      highlights: fallbackPricingHighlights,
-      plans: fallbackPricingPlans,
-      faqs: fallbackPricingFaqs
-    };
+  if (payload) {
+    return payload;
   }
+
+  return {
+    highlights: fallbackPricingHighlights,
+    plans: fallbackPricingPlans.map((plan) => ({
+      title: plan.title,
+      description: plan.description,
+      priceLabel: plan.price,
+      highlight: plan.highlight,
+      features: plan.features
+    })),
+    faqs: fallbackPricingFaqs
+  };
 }
 
-export async function getHowItWorksPageData(): Promise<HowItWorksPageData> {
-  try {
-    return await fetchJson<HowItWorksPageData>("/resources/how-it-works");
-  } catch {
-    return {
-      trustSignals: [
-        {
-          icon: "shield-check",
-          title: "ข้อมูลรถชัดเจน",
-          description: "ดูประวัติรถ ภาพจริง และข้อมูลสำคัญก่อนตัดสินใจ"
-        },
-        {
-          icon: "wallet",
-          title: "คุมงบได้ง่าย",
-          description: "มีเครื่องมือช่วยประเมินค่างวดและค่าใช้จ่ายรวม"
-        },
-        {
-          icon: "circle-check",
-          title: "ปิดดีลเป็นขั้นตอน",
-          description: "ช่วยดูเรื่องนัดหมาย เอกสาร และการส่งมอบรถ"
-        }
-      ],
-      steps: fallbackHowItWorksSteps,
-      buyer: fallbackBuyerExperience,
-      seller: fallbackSellerExperience
-    };
+export async function getHowItWorksPayload(): Promise<ApiHowItWorksResponse> {
+  const payload = await fetchApi<ApiHowItWorksResponse>("/resources/how-it-works");
+
+  if (payload) {
+    return payload;
   }
+
+  return {
+    trustSignals: [
+      {
+        title: "ข้อมูลรถชัดเจน",
+        description:
+          "ดูประวัติรถ ภาพจริง และข้อมูลสำคัญก่อนตัดสินใจได้ในหน้าเดียว",
+        icon: "shield-check"
+      },
+      {
+        title: "คุมงบได้ง่าย",
+        description:
+          "มีเครื่องมือช่วยประเมินค่างวดและค่าใช้จ่ายรวมก่อนคุยไฟแนนซ์จริง",
+        icon: "wallet"
+      },
+      {
+        title: "ปิดดีลเป็นขั้นตอน",
+        description:
+          "จัดการนัดหมาย เอกสาร และการส่งมอบรถได้เป็นลำดับจนจบดีล",
+        icon: "circle-check"
+      }
+    ],
+    steps: fallbackHowItWorksSteps,
+    buyer: fallbackBuyerExperience,
+    seller: fallbackSellerExperience
+  };
 }

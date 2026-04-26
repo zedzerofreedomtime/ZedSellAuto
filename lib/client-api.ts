@@ -201,3 +201,36 @@ export async function submitFinanceApplication(
   );
 }
 
+export async function submitSellerVehicle(
+  token: string | null,
+  body: {
+    brand: string;
+    description: string;
+    driveTrain: string;
+    email: string;
+    engine: string;
+    exteriorColor: string;
+    fuelType: string;
+    imageNames: string[];
+    interiorColor: string;
+    location: string;
+    mileageKM: number;
+    model: string;
+    ownerSummary: string;
+    phone: string;
+    priceTHB: number;
+    sellerName: string;
+    transmission: string;
+    year: number;
+  }
+) {
+  return request<{ id: string; status: string }>(
+    {
+      method: "POST",
+      token: token ?? undefined,
+      body
+    },
+    "/seller/vehicles"
+  );
+}
+

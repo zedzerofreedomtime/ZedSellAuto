@@ -23,6 +23,8 @@ import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { getStoredAccessToken } from "@/lib/auth-storage";
+import { submitSellerVehicle } from "@/lib/client-api";
 import { cn } from "@/lib/utils";
 
 const MAX_IMAGES = 7;
@@ -136,11 +138,19 @@ function formatValue(value: string, fallback: string) {
   return value.trim() || fallback;
 }
 
+function parsePositiveNumber(value: string) {
+  const normalized = value.replace(/[^\d]/g, "");
+  const parsed = Number(normalized);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export function SellCarForm() {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [images, setImages] = useState<ImagePreview[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const carTitle = useMemo(() => {
     const title = [form.year, form.brand, form.model]
@@ -197,13 +207,27 @@ export function SellCarForm() {
     });
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage("");
     setSuccessMessage("");
 
+    const year = parsePositiveNumber(form.year);
+    const priceTHB = parsePositiveNumber(form.priceTHB);
+    const mileageKM = parsePositiveNumber(form.mileageKM);
+
     if (!form.brand.trim() || !form.model.trim() || !form.year.trim()) {
       setErrorMessage("กรุณากรอกยี่ห้อ รุ่น และปีรถให้ครบ");
+      return;
+    }
+
+    if (!year || !priceTHB || !form.location.trim() || !mileageKM) {
+      setErrorMessage("กรุณากรอกปีรถ ราคา พื้นที่รถ และเลขไมล์ให้ครบ");
+      return;
+    }
+
+    if (!form.sellerName.trim() || !form.phone.trim() || !form.email.trim()) {
+      setErrorMessage("กรุณากรอกชื่อผู้ขาย เบอร์โทร และอีเมลให้ครบ");
       return;
     }
 
@@ -212,23 +236,43 @@ export function SellCarForm() {
       return;
     }
 
-    const submissions = JSON.parse(
-      window.localStorage.getItem("zed_auto_sell_submissions") ?? "[]"
-    ) as unknown[];
+    setIsSubmitting(true);
 
-    window.localStorage.setItem(
-      "zed_auto_sell_submissions",
-      JSON.stringify([
-        ...submissions,
-        {
-          ...form,
-          imageCount: images.length,
-          submittedAt: new Date().toISOString()
-        }
-      ])
-    );
+    try {
+      const response = await submitSellerVehicle(getStoredAccessToken(), {
+        brand: form.brand,
+        model: form.model,
+        year,
+        priceTHB,
+        location: form.location,
+        mileageKM,
+        transmission: form.transmission,
+        fuelType: form.fuelType,
+        driveTrain: form.driveTrain,
+        engine: form.engine,
+        exteriorColor: form.exteriorColor,
+        interiorColor: form.interiorColor,
+        ownerSummary: form.ownerSummary,
+        sellerName: form.sellerName,
+        phone: form.phone,
+        email: form.email,
+        description: form.description,
+        imageNames: images.map((image) => image.name)
+      });
 
-    setSuccessMessage("ส่งข้อมูลรถเรียบร้อยแล้ว ทีมงานจะตรวจสอบประกาศและติดต่อกลับ");
+      images.forEach((image) => URL.revokeObjectURL(image.url));
+      setImages([]);
+      setForm(initialFormState);
+      setSuccessMessage(`ส่งข้อมูลรถเข้าฐานข้อมูลแล้ว เลขอ้างอิง ${response.id}`);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "ไม่สามารถส่งข้อมูลรถเข้าระบบได้ในตอนนี้"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -439,8 +483,13 @@ export function SellCarForm() {
                 </p>
               ) : null}
 
-              <Button className="h-12 w-full text-base" type="submit" variant="premium">
-                ส่งข้อมูลเพื่อลงขายรถ
+              <Button
+                className="h-12 w-full text-base"
+                disabled={isSubmitting}
+                type="submit"
+                variant="premium"
+              >
+                {isSubmitting ? "กำลังส่งข้อมูล..." : "ส่งข้อมูลเพื่อลงขายรถ"}
               </Button>
             </CardContent>
           </Card>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { SiteHeader } from "@/components/layout/site-header";
+import { LocalSellerListingPage } from "@/components/listing/local-seller-listing-page";
 import { ListingDetails } from "@/components/listing/listing-details";
 import { ListingGallery } from "@/components/listing/listing-gallery";
 import { ListingOverview } from "@/components/listing/listing-overview";
@@ -39,6 +40,10 @@ export default async function ListingPage({ params }: ListingPageProps) {
   const payload = await getVehicleDetail(slug);
 
   if (!payload) {
+    if (slug.startsWith("seller-listing-")) {
+      return <LocalSellerListingPage slug={slug} />;
+    }
+
     notFound();
   }
 

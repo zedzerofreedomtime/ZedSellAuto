@@ -40,6 +40,23 @@ export type ValuationMessage = {
   assessment?: ValuationAssessment;
 };
 
+export type ValuationListing = {
+  id: string;
+  listedAt: string;
+  priceTHB: number;
+  sourceRequestId: string;
+  status: "published";
+  title: string;
+};
+
+export type StoredSellerListing = ValuationListing & {
+  categorySlug?: string;
+  contact: ValuationContactInput;
+  createdByEmail?: string;
+  imageUrls?: string[];
+  vehicle: ValuationVehicleInput;
+};
+
 export type ValuationRequest = {
   id: string;
   createdAt: string;
@@ -49,11 +66,14 @@ export type ValuationRequest = {
   contact: ValuationContactInput;
   preliminaryAssessment: ValuationAssessment;
   finalAssessment?: ValuationAssessment;
+  listing?: ValuationListing;
   messages: ValuationMessage[];
 };
 
 const STORAGE_KEY = "zed_auto_valuation_requests";
+const SELLER_LISTINGS_KEY = "zed_auto_seller_listings";
 const STORAGE_EVENT = "zed-auto-valuations";
+const SELLER_LISTINGS_EVENT = "zed-auto-seller-listings";
 
 export function subscribeToValuationRequests(onStoreChange: () => void) {
   window.addEventListener("storage", onStoreChange);
@@ -75,6 +95,36 @@ export function getValuationSnapshot() {
 
 export function getServerValuationSnapshot() {
   return "[]";
+}
+
+export function subscribeToSellerListings(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(SELLER_LISTINGS_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(SELLER_LISTINGS_EVENT, onStoreChange);
+  };
+}
+
+export function getSellerListingsSnapshot() {
+  if (typeof window === "undefined") {
+    return "[]";
+  }
+
+  return window.localStorage.getItem(SELLER_LISTINGS_KEY) ?? "[]";
+}
+
+export function getServerSellerListingsSnapshot() {
+  return "[]";
+}
+
+export function parseSellerListings(snapshot: string) {
+  try {
+    return JSON.parse(snapshot) as StoredSellerListing[];
+  } catch {
+    return [];
+  }
 }
 
 export function parseValuationSnapshot(snapshot: string) {
@@ -110,7 +160,7 @@ export function createValuationRequest(input: {
       {
         id: crypto.randomUUID(),
         sender: "admin",
-        text: "ระบบรับคำขอแล้ว แอดมินจะตรวจราคาตลาดและแจ้งราคากลับในแชตนี้",
+        text: "ระบบบันทึกคำขอแล้ว คุณสามารถตั้งราคาขายและลงประกาศได้ทันที หรือคุยกับแอดมินเพื่อขอคำแนะนำราคาเพิ่มเติมได้ในแชตนี้",
         createdAt: now
       }
     ]
@@ -166,6 +216,95 @@ export function sendAdminValuationAssessment(
   }));
 }
 
+export function publishValuationAsListing(requestId: string, askingPriceTHB?: number) {
+  const requests = getRequests();
+  const request = requests.find((item) => item.id === requestId);
+
+  if (!request) {
+    return null;
+  }
+
+  if (request.listing) {
+    return request.listing;
+  }
+
+  const assessment = request.finalAssessment ?? request.preliminaryAssessment;
+  const listedAt = new Date().toISOString();
+  const priceTHB =
+    askingPriceTHB && askingPriceTHB > 0
+      ? askingPriceTHB
+      : assessment.recommendedListPriceTHB;
+  const listing: ValuationListing = {
+    id: `seller-listing-${crypto.randomUUID()}`,
+    listedAt,
+    priceTHB,
+    sourceRequestId: request.id,
+    status: "published",
+    title: buildVehicleTitle(request.vehicle)
+  };
+
+  saveSellerListing({
+    ...listing,
+    contact: request.contact,
+    vehicle: request.vehicle
+  });
+
+  saveRequests(
+    requests.map((item) =>
+      item.id === requestId
+        ? {
+            ...item,
+            listing,
+            updatedAt: listedAt,
+            messages: [
+              ...item.messages,
+              {
+                id: crypto.randomUUID(),
+                sender: "seller",
+                text: `ลงประกาศ ${listing.title} แล้วที่ราคา ${formatTHB(listing.priceTHB)} โดยใช้ข้อมูลจากคำขอประเมินเดิม`,
+                createdAt: listedAt
+              },
+              {
+                id: crypto.randomUUID(),
+                sender: "admin",
+                text: "ประกาศเผยแพร่แล้ว ลูกค้าสามารถใช้ราคานี้เป็นราคาเผื่อต่อรองกับผู้ซื้อได้ทันที",
+                createdAt: listedAt
+              }
+            ]
+          }
+        : item
+    )
+  );
+
+  return listing;
+}
+
+export function saveDirectSellerListing(input: {
+  contact: ValuationContactInput;
+  imageUrls: string[];
+  priceTHB: number;
+  vehicle: ValuationVehicleInput;
+}) {
+  const listedAt = new Date().toISOString();
+  const title = buildVehicleTitle(input.vehicle);
+  const listing: StoredSellerListing = {
+    id: `seller-listing-${crypto.randomUUID()}`,
+    listedAt,
+    priceTHB: input.priceTHB,
+    sourceRequestId: `direct-sell-${crypto.randomUUID()}`,
+    status: "published",
+    title,
+    categorySlug: inferSellerListingCategory(input.vehicle),
+    contact: trimContactInput(input.contact),
+    createdByEmail: input.contact.email.trim().toLowerCase(),
+    imageUrls: input.imageUrls,
+    vehicle: trimVehicleInput(input.vehicle)
+  };
+
+  saveSellerListing(listing);
+  return listing;
+}
+
 export function calculatePreliminaryAssessment(
   vehicle: ValuationVehicleInput
 ): ValuationAssessment {
@@ -183,7 +322,7 @@ export function calculatePreliminaryAssessment(
     marketPriceTHB,
     dealerBuyPriceTHB,
     recommendedListPriceTHB,
-    note: "เป็นราคาประเมินเบื้องต้นจากข้อมูลที่กรอก แอดมินจะตรวจอีกครั้งก่อนแจ้งราคาสุดท้าย",
+    note: "เป็นราคาประเมินเบื้องต้นจากข้อมูลที่กรอก ผู้ขายสามารถใช้เป็นแนวทางตั้งราคาเผื่อต่อรองได้",
     estimatedAt: new Date().toISOString()
   };
 }
@@ -214,6 +353,22 @@ function saveRequests(requests: ValuationRequest[]) {
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(requests));
   window.dispatchEvent(new Event(STORAGE_EVENT));
+}
+
+function saveSellerListing(listing: StoredSellerListing) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const existing = parseSellerListings(
+    window.localStorage.getItem(SELLER_LISTINGS_KEY) ?? "[]"
+  ).filter((item) => item.sourceRequestId !== listing.sourceRequestId);
+
+  window.localStorage.setItem(
+    SELLER_LISTINGS_KEY,
+    JSON.stringify([listing, ...existing])
+  );
+  window.dispatchEvent(new Event(SELLER_LISTINGS_EVENT));
 }
 
 function updateRequest(
@@ -265,4 +420,34 @@ function buildAssessmentMessage(assessment: ValuationAssessment) {
     `แนะนำให้ตั้งขายประมาณ ${formatTHB(assessment.recommendedListPriceTHB)}`,
     assessment.note
   ].join("\n");
+}
+
+function inferSellerListingCategory(vehicle: ValuationVehicleInput) {
+  const text = [
+    vehicle.brand,
+    vehicle.model,
+    vehicle.fuelType,
+    vehicle.driveTrain,
+    vehicle.engine
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (/(ev|electric|ไฟฟ้า|tesla)/i.test(text)) {
+    return "ev";
+  }
+
+  if (/(pickup|hilux|revo|ranger|d-max|triton|กระบะ)/i.test(text)) {
+    return "pickup";
+  }
+
+  if (/(suv|macan|q5|rx|x3|x5|fortuner|pajero|cr-v|cx-5)/i.test(text)) {
+    return "suv";
+  }
+
+  if (/(porsche|audi|lexus|mercedes|benz|bmw|luxury)/i.test(text)) {
+    return "luxury";
+  }
+
+  return "sedan";
 }

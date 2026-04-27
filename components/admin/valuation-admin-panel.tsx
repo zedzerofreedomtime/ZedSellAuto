@@ -36,8 +36,9 @@ export function ValuationAdminPanel() {
   const [adminMessage, setAdminMessage] = useState("");
   const selectedRequest =
     requests.find((request) => request.id === selectedId) ?? requests[0] ?? null;
-  const pendingCount = requests.filter((request) => request.status === "pending").length;
+  const pendingCount = requests.filter((request) => request.status === "pending" && !request.listing).length;
   const assessedCount = requests.filter((request) => request.status === "assessed").length;
+  const listedCount = requests.filter((request) => request.listing).length;
   const draft = selectedRequest ? getDraft(selectedRequest, drafts) : null;
 
   function updateDraft(key: keyof AssessmentDraft, value: string) {
@@ -73,10 +74,11 @@ export function ValuationAdminPanel() {
 
   return (
     <section className="mt-8">
-      <div className="mb-4 grid gap-4 md:grid-cols-3">
+      <div className="mb-4 grid gap-4 md:grid-cols-4">
         <SummaryCard label="คำขอทั้งหมด" value={`${requests.length}`} />
         <SummaryCard label="รอประเมิน" value={`${pendingCount}`} />
         <SummaryCard label="แจ้งราคาแล้ว" value={`${assessedCount}`} />
+        <SummaryCard label="ลูกค้าลงประกาศแล้ว" value={`${listedCount}`} />
       </div>
 
       <Card className="bg-white">
@@ -203,7 +205,12 @@ function RequestButton({
     >
       <p className="font-semibold">{buildVehicleTitle(request.vehicle)}</p>
       <p className={cn("mt-1 text-xs", isSelected ? "text-zinc-300" : "text-zinc-500")}>
-        {request.contact.sellerName} · {request.status === "assessed" ? "แจ้งราคาแล้ว" : "รอประเมิน"}
+        {request.contact.sellerName} ·{" "}
+        {request.listing
+          ? "ลูกค้าลงประกาศแล้ว"
+          : request.status === "assessed"
+            ? "แจ้งราคาแล้ว"
+            : "รอประเมิน"}
       </p>
     </button>
   );
@@ -233,8 +240,12 @@ function VehicleSummary({ request }: { request: ValuationRequest }) {
             {request.vehicle.location} · ลูกค้าคิดราคาไว้ {request.vehicle.expectedPriceTHB} บาท
           </p>
         </div>
-        <Badge variant={request.status === "assessed" ? "success" : "warning"}>
-          {request.status === "assessed" ? "ประเมินแล้ว" : "รอประเมิน"}
+        <Badge variant={request.listing || request.status === "assessed" ? "success" : "warning"}>
+          {request.listing
+            ? "ลูกค้าลงประกาศแล้ว"
+            : request.status === "assessed"
+              ? "ประเมินแล้ว"
+              : "รอประเมิน"}
         </Badge>
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">

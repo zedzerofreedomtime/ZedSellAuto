@@ -2,13 +2,12 @@
 
 import { ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import { ReactNode, useSyncExternalStore } from "react";
+import { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCurrentUser } from "@/components/auth/use-current-user";
 import type { ApiUser } from "@/lib/api-types";
-
-const CURRENT_USER_KEY = "zed_auto_current_user";
 
 type RoleGateProps = {
   allowedRoles: string[];
@@ -16,12 +15,7 @@ type RoleGateProps = {
 };
 
 export function RoleGate({ allowedRoles, children }: RoleGateProps) {
-  const userSnapshot = useSyncExternalStore(
-    subscribeToAuthChanges,
-    getAuthSnapshot,
-    getServerSnapshot
-  );
-  const user = parseUserSnapshot(userSnapshot);
+  const user = useCurrentUser();
 
   if (!user) {
     return (
@@ -46,36 +40,6 @@ export function RoleGate({ allowedRoles, children }: RoleGateProps) {
   }
 
   return <>{children(user)}</>;
-}
-
-function subscribeToAuthChanges(onStoreChange: () => void) {
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener("zed-auto-auth", onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener("zed-auto-auth", onStoreChange);
-  };
-}
-
-function getAuthSnapshot() {
-  return window.localStorage.getItem(CURRENT_USER_KEY);
-}
-
-function getServerSnapshot() {
-  return null;
-}
-
-function parseUserSnapshot(snapshot: string | null) {
-  if (!snapshot) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(snapshot) as ApiUser;
-  } catch {
-    return null;
-  }
 }
 
 function AccessCard({

@@ -2,6 +2,7 @@
 
 import {
   CarFront,
+  CircleCheck,
   Gauge,
   MessageCircle,
   Send,
@@ -25,6 +26,7 @@ import {
   getServerValuationSnapshot,
   getValuationSnapshot,
   parseValuationSnapshot,
+  publishValuationAsListing,
   subscribeToValuationRequests,
   type ValuationContactInput,
   type ValuationRequest,
@@ -93,6 +95,9 @@ export function ValuationWorkspace() {
   const [activeId, setActiveId] = useState("");
   const [sellerMessage, setSellerMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [askingPriceByRequest, setAskingPriceByRequest] = useState<Record<string, string>>({});
+  const [publishMessage, setPublishMessage] = useState("");
+  const [publishError, setPublishError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
   const activeRequest =
@@ -101,6 +106,14 @@ export function ValuationWorkspace() {
     () => calculatePreliminaryAssessment(vehicle),
     [vehicle]
   );
+  const activeAssessment =
+    activeRequest?.finalAssessment ?? activeRequest?.preliminaryAssessment ?? null;
+  const activeAskingPrice = activeRequest
+    ? askingPriceByRequest[activeRequest.id] ??
+      (activeRequest.listing || !activeAssessment
+        ? ""
+        : formatTHB(activeAssessment.recommendedListPriceTHB))
+    : "";
 
   function updateVehicle(key: keyof ValuationVehicleInput, value: string) {
     setVehicle((current) => ({ ...current, [key]: value }));
@@ -127,7 +140,7 @@ export function ValuationWorkspace() {
 
     const request = createValuationRequest({ vehicle, contact });
     setActiveId(request.id);
-    setSuccessMessage("ส่งข้อมูลให้แอดมินแล้ว ตอนนี้คุยต่อในช่องแชตด้านล่างได้เลย");
+    setSuccessMessage("สร้างคำขอเรียบร้อยแล้ว คุณกำหนดราคาขายและลงประกาศได้ทันทีจากช่องด้านล่าง");
   }
 
   function handleSendSellerMessage() {
@@ -138,6 +151,48 @@ export function ValuationWorkspace() {
 
     addSellerValuationMessage(activeRequest.id, text);
     setSellerMessage("");
+  }
+
+  function handlePublishListing() {
+    if (!activeRequest) {
+      return;
+    }
+
+    setPublishError("");
+    setPublishMessage("");
+
+    const parsedAskingPrice = parsePrice(activeAskingPrice);
+    if (!parsedAskingPrice) {
+      setPublishError("กรุณากรอกราคาที่ต้องการตั้งขายก่อนลงประกาศ");
+      return;
+    }
+
+    const listing = publishValuationAsListing(activeRequest.id, parsedAskingPrice);
+    if (!listing) {
+      setPublishError("ยังไม่พบข้อมูลรถสำหรับสร้างประกาศ กรุณาลองส่งข้อมูลใหม่อีกครั้ง");
+      return;
+    }
+
+    setPublishMessage(
+      `สร้างประกาศเรียบร้อย เลขอ้างอิง ${listing.id} เผยแพร่แล้วที่ราคา ${formatTHB(listing.priceTHB)}`
+    );
+  }
+
+  function handleSelectRequest(requestId: string) {
+    setActiveId(requestId);
+    setPublishError("");
+    setPublishMessage("");
+  }
+
+  function handleAskingPriceChange(value: string) {
+    if (!activeRequest) {
+      return;
+    }
+
+    setAskingPriceByRequest((current) => ({
+      ...current,
+      [activeRequest.id]: value
+    }));
   }
 
   return (
@@ -252,7 +307,7 @@ export function ValuationWorkspace() {
             <CardHeader>
               <CardTitle className="text-2xl">ราคาประเมินจากข้อมูลที่กรอก</CardTitle>
               <p className="text-sm leading-6 text-muted-foreground">
-                ค่านี้เป็นตัวช่วยเบื้องต้นเท่านั้น แอดมินจะตรวจราคาในตลาดและแจ้งกลับผ่านแชต
+                ใช้เป็นแนวทางตั้งราคาขายเบื้องต้น คุณยังสามารถกำหนดราคาที่อยากขายเองเพื่อเผื่อต่อรองได้
               </p>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -266,12 +321,17 @@ export function ValuationWorkspace() {
 
       <CustomerChat
         activeRequest={activeRequest}
+        askingPrice={activeAskingPrice}
         message={sellerMessage}
+        onAskingPriceChange={handleAskingPriceChange}
         onMessageChange={setSellerMessage}
+        onPublishListing={handlePublishListing}
         onSendMessage={handleSendSellerMessage}
+        publishError={publishError}
+        publishMessage={publishMessage}
         requests={requests}
         selectedId={activeRequest?.id ?? ""}
-        onSelect={setActiveId}
+        onSelect={handleSelectRequest}
       />
     </section>
   );
@@ -279,18 +339,28 @@ export function ValuationWorkspace() {
 
 function CustomerChat({
   activeRequest,
+  askingPrice,
   message,
+  onAskingPriceChange,
   onMessageChange,
   onSelect,
+  onPublishListing,
   onSendMessage,
+  publishError,
+  publishMessage,
   requests,
   selectedId
 }: {
   activeRequest: ValuationRequest | null;
+  askingPrice: string;
   message: string;
+  onAskingPriceChange: (value: string) => void;
   onMessageChange: (value: string) => void;
+  onPublishListing: () => void;
   onSelect: (id: string) => void;
   onSendMessage: () => void;
+  publishError: string;
+  publishMessage: string;
   requests: ValuationRequest[];
   selectedId: string;
 }) {
@@ -325,7 +395,11 @@ function CustomerChat({
             >
               <p className="font-semibold">{buildVehicleTitle(request.vehicle)}</p>
               <p className={cn("mt-1 text-xs", request.id === selectedId ? "text-zinc-300" : "text-zinc-500")}>
-                {request.status === "assessed" ? "แอดมินแจ้งราคาแล้ว" : "รอแอดมินประเมิน"}
+                {request.listing
+                  ? "ลงประกาศแล้ว"
+                  : request.status === "assessed"
+                    ? "แอดมินแจ้งราคาแล้ว"
+                    : "พร้อมลงประกาศ"}
               </p>
             </button>
           ))}
@@ -334,8 +408,12 @@ function CustomerChat({
 
       <Card className="bg-white">
         <CardHeader>
-          <Badge className="w-fit" variant={activeRequest.status === "assessed" ? "success" : "warning"}>
-            {activeRequest.status === "assessed" ? "ประเมินแล้ว" : "รอประเมิน"}
+          <Badge className="w-fit" variant={activeRequest.listing || activeRequest.status === "assessed" ? "success" : "warning"}>
+            {activeRequest.listing
+              ? "ลงประกาศแล้ว"
+              : activeRequest.status === "assessed"
+                ? "ประเมินแล้ว"
+                : "พร้อมลงประกาศ"}
           </Badge>
           <CardTitle className="text-2xl">
             แชตประเมินราคา {buildVehicleTitle(activeRequest.vehicle)}
@@ -343,6 +421,14 @@ function CustomerChat({
         </CardHeader>
         <CardContent className="space-y-4">
           <MessageList request={activeRequest} />
+          <PublishListingCard
+            askingPrice={askingPrice}
+            onAskingPriceChange={onAskingPriceChange}
+            onPublishListing={onPublishListing}
+            publishError={publishError}
+            publishMessage={publishMessage}
+            request={activeRequest}
+          />
           <div className="flex gap-2">
             <Input
               className="h-11"
@@ -363,6 +449,93 @@ function CustomerChat({
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function PublishListingCard({
+  askingPrice,
+  onAskingPriceChange,
+  onPublishListing,
+  publishError,
+  publishMessage,
+  request
+}: {
+  askingPrice: string;
+  onAskingPriceChange: (value: string) => void;
+  onPublishListing: () => void;
+  publishError: string;
+  publishMessage: string;
+  request: ValuationRequest;
+}) {
+  const assessment = request.finalAssessment ?? request.preliminaryAssessment;
+
+  if (!assessment) {
+    return (
+      <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-4 py-3 text-sm text-muted-foreground">
+        เมื่อมีข้อมูลรถครบแล้ว ตรงนี้จะมีปุ่มให้ลงประกาศได้ทันที
+      </div>
+    );
+  }
+
+  const listing = request.listing;
+
+  return (
+    <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="font-semibold text-zinc-950">
+            พร้อมลงประกาศขายรถคันนี้ไหม?
+          </p>
+          <p className="mt-1 text-sm leading-6 text-zinc-600">
+            ระบบจะใช้ข้อมูลรถจากคำขอนี้ คุณกำหนดราคาขายเองได้เพื่อเผื่อต่อรองกับผู้ซื้อ
+          </p>
+        </div>
+        {listing ? (
+          <Badge variant="success">
+            <CircleCheck className="mr-1 h-3.5 w-3.5" />
+            ลงขายแล้ว
+          </Badge>
+        ) : null}
+      </div>
+
+      {listing ? (
+        <p className="mt-3 rounded-md border border-emerald-200 bg-white px-3 py-2 text-sm text-emerald-700">
+          สร้างประกาศแล้ว เลขอ้างอิง {listing.id} · เผยแพร่แล้วที่ราคา {formatTHB(listing.priceTHB)}
+        </p>
+      ) : (
+        <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-zinc-700">
+              ราคาที่ต้องการตั้งขาย
+            </label>
+            <Input
+              className="h-11 bg-white"
+              onChange={(event) => onAskingPriceChange(event.target.value)}
+              placeholder={formatTHB(assessment.recommendedListPriceTHB)}
+              value={askingPrice}
+            />
+            <p className="text-xs leading-5 text-zinc-500">
+              ตั้งเผื่อต่อรองได้ ระบบจะเผยแพร่ประกาศทันทีโดยไม่ต้องรอแอดมินอนุมัติ
+            </p>
+          </div>
+          <Button className="self-start sm:mt-7" onClick={onPublishListing} type="button" variant="accent">
+            <CircleCheck />
+            ลงประกาศทันที
+          </Button>
+        </div>
+      )}
+
+      {publishMessage ? (
+        <p className="mt-3 rounded-md border border-emerald-200 bg-white px-3 py-2 text-sm text-emerald-700">
+          {publishMessage}
+        </p>
+      ) : null}
+      {publishError ? (
+        <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {publishError}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -408,6 +581,13 @@ function PriceRow({ label, value }: { label: string; value: number }) {
       <span className="font-semibold text-zinc-950">{formatTHB(value)}</span>
     </div>
   );
+}
+
+function parsePrice(value: string) {
+  const normalized = value.replace(/[^\d]/g, "");
+  const parsed = Number(normalized);
+
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function TextField({

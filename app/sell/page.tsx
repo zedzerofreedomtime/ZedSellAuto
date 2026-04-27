@@ -2,6 +2,7 @@ import { Sparkles } from "lucide-react";
 import Link from "next/link";
 
 import { SiteHeader } from "@/components/layout/site-header";
+import { MySellerListings } from "@/components/sell/my-seller-listings";
 import { SellCarForm } from "@/components/sell/sell-car-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ export default function SellPage() {
               ลงขายรถกับ Zed Auto
             </h1>
             <p className="mt-4 max-w-3xl text-base leading-7 text-zinc-600 sm:text-lg">
-              กรอกรายละเอียดรถ รูปภาพ และข้อมูลติดต่อให้ครบ ทีมงานจะช่วยคัดกรองประกาศและประเมินความพร้อมก่อนเผยแพร่
+              กรอกรายละเอียดรถ รูปภาพ ข้อมูลติดต่อ และตั้งราคาที่ต้องการขายได้เอง เพื่อเผยแพร่ประกาศได้รวดเร็วและเผื่อต่อรองกับผู้ซื้อ
             </p>
           </div>
 
@@ -33,7 +34,7 @@ export default function SellPage() {
                 อยากรู้ราคาก่อนลงขาย?
               </h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                ส่งข้อมูลรถให้แอดมินประเมินราคาเบื้องต้น พร้อมแชตคุยเรื่องราคาตลาดและราคาที่ควรตั้งขาย
+                ประเมินราคาจากข้อมูลรถของคุณก่อนตั้งประกาศ แล้วเลือกตั้งราคาขายเองได้ทันที
               </p>
               <Button asChild className="mt-5 h-11 w-full" variant="premium">
                 <Link href="/sell/valuation">
@@ -47,6 +48,7 @@ export default function SellPage() {
       </section>
 
       <SellCarForm />
+      <MySellerListings />
     </main>
   );
 }

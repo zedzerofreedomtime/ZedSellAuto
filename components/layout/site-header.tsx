@@ -1,10 +1,13 @@
 "use client";
 
-import { ArrowLeft, Car, ChevronDown, Menu, X } from "lucide-react";
+import { ArrowLeft, Car, ChevronDown, LogOut, Menu, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { useCurrentUser } from "@/components/auth/use-current-user";
 import { Button } from "@/components/ui/button";
+import { clearAuthSession } from "@/lib/auth-storage";
 import { cn } from "@/lib/utils";
 
 type SiteHeaderProps = {
@@ -37,6 +40,8 @@ const resourceItems = [
 ];
 
 export function SiteHeader({ backHref, backLabel }: SiteHeaderProps) {
+  const router = useRouter();
+  const currentUser = useCurrentUser();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileResourcesOpen, setMobileResourcesOpen] = useState(false);
   const [desktopResourcesOpen, setDesktopResourcesOpen] = useState(false);
@@ -44,6 +49,13 @@ export function SiteHeader({ backHref, backLabel }: SiteHeaderProps) {
   function closeMenu() {
     setMobileResourcesOpen(false);
     setMenuOpen(false);
+  }
+
+  function handleLogout() {
+    clearAuthSession();
+    closeMenu();
+    router.push("/");
+    router.refresh();
   }
 
   useEffect(() => {
@@ -151,12 +163,21 @@ export function SiteHeader({ backHref, backLabel }: SiteHeaderProps) {
                 </Link>
               </Button>
             ) : null}
-            <Button asChild variant="outline">
-              <Link href="/login">เข้าสู่ระบบ</Link>
-            </Button>
-            <Button asChild variant="accent">
-              <Link href="/signup">สมัครสมาชิก</Link>
-            </Button>
+            {currentUser ? (
+              <Button onClick={handleLogout} type="button" variant="outline">
+                <LogOut />
+                ออกจากระบบ
+              </Button>
+            ) : (
+              <>
+                <Button asChild variant="outline">
+                  <Link href="/login">เข้าสู่ระบบ</Link>
+                </Button>
+                <Button asChild variant="accent">
+                  <Link href="/signup">สมัครสมาชิก</Link>
+                </Button>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-2 lg:hidden">
@@ -267,16 +288,30 @@ export function SiteHeader({ backHref, backLabel }: SiteHeaderProps) {
           </nav>
 
           <div className="mt-8 grid gap-3">
-            <Button asChild className="h-12 text-base" variant="outline">
-              <Link href="/login" onClick={closeMenu}>
-                เข้าสู่ระบบ
-              </Link>
-            </Button>
-            <Button asChild className="h-12 text-base" variant="accent">
-              <Link href="/signup" onClick={closeMenu}>
-                สมัครสมาชิก
-              </Link>
-            </Button>
+            {currentUser ? (
+              <Button
+                className="h-12 text-base"
+                onClick={handleLogout}
+                type="button"
+                variant="outline"
+              >
+                <LogOut />
+                ออกจากระบบ
+              </Button>
+            ) : (
+              <>
+                <Button asChild className="h-12 text-base" variant="outline">
+                  <Link href="/login" onClick={closeMenu}>
+                    เข้าสู่ระบบ
+                  </Link>
+                </Button>
+                <Button asChild className="h-12 text-base" variant="accent">
+                  <Link href="/signup" onClick={closeMenu}>
+                    สมัครสมาชิก
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </aside>

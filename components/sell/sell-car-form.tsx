@@ -25,11 +25,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { getStoredAccessToken } from "@/lib/auth-storage";
 import { submitSellerVehicle } from "@/lib/client-api";
+import { saveDirectSellerListing } from "@/lib/valuation-storage";
 import { cn } from "@/lib/utils";
 
 const MAX_IMAGES = 7;
 
 type ImagePreview = {
+  dataUrl: string;
   id: string;
   name: string;
   url: string;
@@ -145,6 +147,33 @@ function parsePositiveNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new window.Image();
+
+    image.onload = () => {
+      const maxSize = 1200;
+      const ratio = Math.min(1, maxSize / Math.max(image.width, image.height));
+      const canvas = document.createElement("canvas");
+
+      canvas.width = Math.max(1, Math.round(image.width * ratio));
+      canvas.height = Math.max(1, Math.round(image.height * ratio));
+      canvas
+        .getContext("2d")
+        ?.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      URL.revokeObjectURL(objectUrl);
+      resolve(canvas.toDataURL("image/jpeg", 0.78));
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("ไม่สามารถอ่านไฟล์รูปภาพได้"));
+    };
+    image.src = objectUrl;
+  });
+}
+
 export function SellCarForm() {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [images, setImages] = useState<ImagePreview[]>([]);
@@ -168,7 +197,7 @@ export function SellCarForm() {
     }));
   }
 
-  function handleImagesChange(event: ChangeEvent<HTMLInputElement>) {
+  async function handleImagesChange(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
 
@@ -178,33 +207,33 @@ export function SellCarForm() {
 
     setErrorMessage("");
 
-    setImages((currentImages) => {
-      const availableSlots = MAX_IMAGES - currentImages.length;
-      const selectedFiles = files.slice(0, availableSlots);
+    const availableSlots = MAX_IMAGES - images.length;
+    const selectedFiles = files.slice(0, availableSlots);
 
-      if (files.length > availableSlots) {
-        setErrorMessage(`เพิ่มรูปได้สูงสุด ${MAX_IMAGES} รูป`);
-      }
+    if (files.length > availableSlots) {
+      setErrorMessage(`เพิ่มรูปได้สูงสุด ${MAX_IMAGES} รูป`);
+    }
 
-      const nextImages = selectedFiles.map((file) => ({
-        id: `${file.name}-${crypto.randomUUID()}`,
-        name: file.name,
-        url: URL.createObjectURL(file)
-      }));
+    const nextImages = await Promise.all(
+      selectedFiles.map(async (file) => {
+        const dataUrl = await fileToDataUrl(file);
 
-      return [...currentImages, ...nextImages];
-    });
+        return {
+          dataUrl,
+          id: `${file.name}-${crypto.randomUUID()}`,
+          name: file.name,
+          url: dataUrl
+        };
+      })
+    );
+
+    setImages((currentImages) => [...currentImages, ...nextImages]);
   }
 
   function removeImage(imageId: string) {
-    setImages((currentImages) => {
-      const imageToRemove = currentImages.find((image) => image.id === imageId);
-      if (imageToRemove) {
-        URL.revokeObjectURL(imageToRemove.url);
-      }
-
-      return currentImages.filter((image) => image.id !== imageId);
-    });
+    setImages((currentImages) =>
+      currentImages.filter((image) => image.id !== imageId)
+    );
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -239,7 +268,7 @@ export function SellCarForm() {
     setIsSubmitting(true);
 
     try {
-      const response = await submitSellerVehicle(getStoredAccessToken(), {
+      await submitSellerVehicle(getStoredAccessToken(), {
         brand: form.brand,
         model: form.model,
         year,
@@ -260,10 +289,35 @@ export function SellCarForm() {
         imageNames: images.map((image) => image.name)
       });
 
-      images.forEach((image) => URL.revokeObjectURL(image.url));
+      const localListing = saveDirectSellerListing({
+        contact: {
+          email: form.email,
+          phone: form.phone,
+          sellerName: form.sellerName
+        },
+        imageUrls: images.map((image) => image.dataUrl),
+        priceTHB,
+        vehicle: {
+          brand: form.brand,
+          model: form.model,
+          year: form.year,
+          expectedPriceTHB: form.priceTHB,
+          location: form.location,
+          mileageKM: form.mileageKM,
+          transmission: form.transmission,
+          fuelType: form.fuelType,
+          driveTrain: form.driveTrain,
+          engine: form.engine,
+          exteriorColor: form.exteriorColor,
+          interiorColor: form.interiorColor,
+          ownerSummary: form.ownerSummary,
+          conditionSummary: form.description,
+          description: form.description
+        }
+      });
       setImages([]);
       setForm(initialFormState);
-      setSuccessMessage(`ส่งข้อมูลรถเข้าฐานข้อมูลแล้ว เลขอ้างอิง ${response.id}`);
+      setSuccessMessage(`สร้างประกาศเรียบร้อย เลขอ้างอิง ${localListing.id} ผู้ขายกำหนดราคาเองได้และพร้อมคุยต่อรองกับผู้ซื้อ`);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -419,7 +473,7 @@ export function SellCarForm() {
             <CardHeader>
               <CardTitle className="text-2xl">ตัวอย่างประกาศ</CardTitle>
               <p className="text-sm text-muted-foreground">
-                ข้อมูลนี้จะช่วยให้ทีมงานตรวจประกาศได้เร็วขึ้น
+                ตรวจความครบถ้วนก่อนเผยแพร่ประกาศขาย
               </p>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -489,7 +543,7 @@ export function SellCarForm() {
                 type="submit"
                 variant="premium"
               >
-                {isSubmitting ? "กำลังส่งข้อมูล..." : "ส่งข้อมูลเพื่อลงขายรถ"}
+                {isSubmitting ? "กำลังส่งข้อมูล..." : "ลงประกาศขายรถ"}
               </Button>
             </CardContent>
           </Card>

@@ -3,6 +3,8 @@ import type { ApiAuthResponse, ApiUser } from "@/lib/api-types";
 const ACCESS_TOKEN_KEY = "zed_auto_access_token";
 const CURRENT_USER_KEY = "zed_auto_current_user";
 const LOCAL_USERS_KEY = "zed_auto_local_users";
+export const AUTH_STORAGE_EVENT = "zed-auto-auth";
+export const CURRENT_USER_STORAGE_KEY = CURRENT_USER_KEY;
 
 type AuthAudience = "admin" | "any" | "user";
 
@@ -109,7 +111,7 @@ export function getStoredCurrentUser() {
 }
 
 export function getAuthDestination(user: ApiUser) {
-  return user.role === "admin" ? "/admin" : "/account";
+  return user.role === "admin" ? "/admin" : "/";
 }
 
 export function storeAuthSession(accessToken: string, user: unknown) {
@@ -119,7 +121,7 @@ export function storeAuthSession(accessToken: string, user: unknown) {
 
   window.localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
   window.localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-  window.dispatchEvent(new Event("zed-auto-auth"));
+  window.dispatchEvent(new Event(AUTH_STORAGE_EVENT));
 }
 
 export function clearAuthSession() {
@@ -129,7 +131,7 @@ export function clearAuthSession() {
 
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);
   window.localStorage.removeItem(CURRENT_USER_KEY);
-  window.dispatchEvent(new Event("zed-auto-auth"));
+  window.dispatchEvent(new Event(AUTH_STORAGE_EVENT));
 }
 
 export function registerLocalUser(input: {

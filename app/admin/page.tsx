@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { RoleGate } from "@/components/auth/role-gate";
+import { ValuationAdminPanel } from "@/components/admin/valuation-admin-panel";
 import { SiteHeader } from "@/components/layout/site-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -25,7 +26,7 @@ export default function AdminPage() {
                 ศูนย์จัดการของ {user.fullName}
               </h1>
               <p className="mt-3 max-w-3xl leading-7 text-muted-foreground">
-                พื้นที่หลังบ้านสำหรับตรวจประกาศรถ คำขอจากลูกค้า และสถานะดีลสำคัญ
+                พื้นที่หลังบ้านสำหรับตรวจประกาศรถ คำขอจากลูกค้า สถานะดีล และแชตประเมินราคาก่อนลงขาย
               </p>
             </div>
 
@@ -35,6 +36,8 @@ export default function AdminPage() {
               <DashboardCard icon={Gauge} label="นัดทดลองขับ" value="0" />
               <DashboardCard icon={ShieldCheck} label="ดีลที่ต้องติดตาม" value="0" />
             </div>
+
+            <ValuationAdminPanel />
           </section>
         )}
       </RoleGate>

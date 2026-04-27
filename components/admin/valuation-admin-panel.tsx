@@ -1,7 +1,7 @@
 "use client";
 
 import { MessageCircle, Send, Sparkles } from "lucide-react";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
 import { MessageList } from "@/components/sell/valuation-workspace";
 import { Badge } from "@/components/ui/badge";
@@ -9,14 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  addAdminValuationMessage,
+  addAdminValuationMessage as addAdminValuationMessageApi,
+  fetchSellerValuations,
+  sendAdminValuationAssessment as sendAdminValuationAssessmentApi
+} from "@/lib/client-api";
+import {
   buildVehicleTitle,
   formatTHB,
-  getServerValuationSnapshot,
-  getValuationSnapshot,
-  parseValuationSnapshot,
-  sendAdminValuationAssessment,
-  subscribeToValuationRequests,
   type ValuationAssessment,
   type ValuationRequest
 } from "@/lib/valuation-storage";
@@ -25,21 +24,58 @@ import { cn } from "@/lib/utils";
 type AssessmentDraft = Omit<ValuationAssessment, "estimatedAt">;
 
 export function ValuationAdminPanel() {
-  const snapshot = useSyncExternalStore(
-    subscribeToValuationRequests,
-    getValuationSnapshot,
-    getServerValuationSnapshot
-  );
-  const requests = useMemo(() => parseValuationSnapshot(snapshot), [snapshot]);
+  const [requests, setRequests] = useState<ValuationRequest[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [drafts, setDrafts] = useState<Record<string, AssessmentDraft>>({});
   const [adminMessage, setAdminMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
   const selectedRequest =
     requests.find((request) => request.id === selectedId) ?? requests[0] ?? null;
   const pendingCount = requests.filter((request) => request.status === "pending" && !request.listing).length;
   const assessedCount = requests.filter((request) => request.status === "assessed").length;
   const listedCount = requests.filter((request) => request.listing).length;
   const draft = selectedRequest ? getDraft(selectedRequest, drafts) : null;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadRequests() {
+      try {
+        const nextRequests = sortValuationRequests(await fetchSellerValuations());
+
+        if (!isMounted) {
+          return;
+        }
+
+        setRequests(nextRequests);
+        setSelectedId((currentId) =>
+          nextRequests.some((request) => request.id === currentId)
+            ? currentId
+            : nextRequests[0]?.id ?? ""
+        );
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : "ไม่สามารถโหลดคำขอประเมินจาก backend ได้"
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadRequests();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   function updateDraft(key: keyof AssessmentDraft, value: string) {
     if (!selectedRequest) {
@@ -55,21 +91,57 @@ export function ValuationAdminPanel() {
     }));
   }
 
-  function handleSendAssessment() {
-    if (!selectedRequest || !draft) {
+  async function handleSendAssessment() {
+    if (!selectedRequest || !draft || isSending) {
       return;
     }
 
-    sendAdminValuationAssessment(selectedRequest.id, draft);
+    setIsSending(true);
+    setErrorMessage("");
+
+    try {
+      const request = await sendAdminValuationAssessmentApi(
+        selectedRequest.id,
+        draft
+      );
+
+      setRequests((currentRequests) =>
+        upsertValuationRequest(currentRequests, request)
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "ไม่สามารถส่งผลประเมินได้"
+      );
+    } finally {
+      setIsSending(false);
+    }
   }
 
-  function handleSendMessage() {
-    if (!selectedRequest || !adminMessage.trim()) {
+  async function handleSendMessage() {
+    if (!selectedRequest || !adminMessage.trim() || isSending) {
       return;
     }
 
-    addAdminValuationMessage(selectedRequest.id, adminMessage.trim());
-    setAdminMessage("");
+    setIsSending(true);
+    setErrorMessage("");
+
+    try {
+      const request = await addAdminValuationMessageApi(
+        selectedRequest.id,
+        adminMessage.trim()
+      );
+
+      setRequests((currentRequests) =>
+        upsertValuationRequest(currentRequests, request)
+      );
+      setAdminMessage("");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "ไม่สามารถส่งข้อความได้"
+      );
+    } finally {
+      setIsSending(false);
+    }
   }
 
   return (
@@ -80,6 +152,17 @@ export function ValuationAdminPanel() {
         <SummaryCard label="แจ้งราคาแล้ว" value={`${assessedCount}`} />
         <SummaryCard label="ลูกค้าลงประกาศแล้ว" value={`${listedCount}`} />
       </div>
+
+      {errorMessage ? (
+        <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
+        </p>
+      ) : null}
+      {isLoading ? (
+        <p className="mb-4 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-600">
+          กำลังโหลดคำขอประเมินจากฐานข้อมูล...
+        </p>
+      ) : null}
 
       <Card className="bg-white">
         <CardHeader>
@@ -128,7 +211,7 @@ export function ValuationAdminPanel() {
                       placeholder="พิมพ์ข้อความหาเจ้าของรถ"
                       value={adminMessage}
                     />
-                    <Button onClick={handleSendMessage} type="button" variant="premium">
+                    <Button disabled={isSending} onClick={handleSendMessage} type="button" variant="premium">
                       <Send />
                       ส่ง
                     </Button>
@@ -169,7 +252,13 @@ export function ValuationAdminPanel() {
                           value={draft.note}
                         />
                       </div>
-                      <Button className="w-full" onClick={handleSendAssessment} type="button" variant="accent">
+                      <Button
+                        className="w-full"
+                        disabled={isSending}
+                        onClick={handleSendAssessment}
+                        type="button"
+                        variant="accent"
+                      >
                         <MessageCircle />
                         แจ้งราคากลับลูกค้า
                       </Button>
@@ -293,6 +382,20 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
       </CardContent>
     </Card>
   );
+}
+
+function upsertValuationRequest(
+  requests: ValuationRequest[],
+  request: ValuationRequest
+) {
+  return sortValuationRequests([
+    request,
+    ...requests.filter((item) => item.id !== request.id)
+  ]);
+}
+
+function sortValuationRequests(requests: ValuationRequest[]) {
+  return [...requests].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 function getDraft(

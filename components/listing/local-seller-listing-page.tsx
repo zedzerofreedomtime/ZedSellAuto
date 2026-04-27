@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
 import { SiteHeader } from "@/components/layout/site-header";
 import { ListingDetails } from "@/components/listing/listing-details";
@@ -8,28 +8,42 @@ import { ListingGallery } from "@/components/listing/listing-gallery";
 import { ListingOverview } from "@/components/listing/listing-overview";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { fetchSellerListing } from "@/lib/client-api";
+import type { ApiVehicle } from "@/lib/api-types";
 import { sellerListingToApiVehicle } from "@/lib/seller-vehicle-mapper";
-import {
-  getSellerListingsSnapshot,
-  getServerSellerListingsSnapshot,
-  parseSellerListings,
-  subscribeToSellerListings
-} from "@/lib/valuation-storage";
 import Link from "next/link";
 
 export function LocalSellerListingPage({ slug }: { slug: string }) {
-  const sellerListingsSnapshot = useSyncExternalStore(
-    subscribeToSellerListings,
-    getSellerListingsSnapshot,
-    getServerSellerListingsSnapshot
-  );
-  const vehicle = useMemo(() => {
-    const listing = parseSellerListings(sellerListingsSnapshot).find(
-      (item) => item.id === slug
-    );
+  const [vehicle, setVehicle] = useState<ApiVehicle | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-    return listing ? sellerListingToApiVehicle(listing) : null;
-  }, [sellerListingsSnapshot, slug]);
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadListing() {
+      try {
+        const listing = await fetchSellerListing(slug);
+
+        if (isMounted) {
+          setVehicle(sellerListingToApiVehicle(listing));
+        }
+      } catch {
+        if (isMounted) {
+          setVehicle(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadListing();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [slug]);
 
   if (!vehicle) {
     return (
@@ -42,7 +56,9 @@ export function LocalSellerListingPage({ slug }: { slug: string }) {
                 ไม่พบประกาศนี้ในเครื่อง
               </h1>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                ประกาศจากผู้ขายถูกเก็บไว้ใน browser ที่สร้างประกาศ หากล้างข้อมูล browser หรือเปิดคนละเครื่อง รายการนี้อาจไม่แสดง
+                {isLoading
+                  ? "กำลังโหลดประกาศจากฐานข้อมูล..."
+                  : "ไม่พบประกาศนี้ในฐานข้อมูล หรือ backend ยังไม่พร้อมใช้งาน"}
               </p>
               <Button asChild className="mt-5" variant="premium">
                 <Link href="/sell">ไปหน้าขายรถ</Link>

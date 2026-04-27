@@ -11,23 +11,23 @@ import {
   type LucideIcon,
   UserRound
 } from "lucide-react";
-import { FormEvent, useMemo, useState, useSyncExternalStore } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { getStoredAccessToken } from "@/lib/auth-storage";
 import {
-  addSellerValuationMessage,
+  addSellerValuationMessage as addSellerValuationMessageApi,
+  createSellerValuation,
+  fetchSellerValuations,
+  publishSellerValuation as publishSellerValuationApi
+} from "@/lib/client-api";
+import {
   buildVehicleTitle,
   calculatePreliminaryAssessment,
-  createValuationRequest,
   formatTHB,
-  getServerValuationSnapshot,
-  getValuationSnapshot,
-  parseValuationSnapshot,
-  publishValuationAsListing,
-  subscribeToValuationRequests,
   type ValuationContactInput,
   type ValuationRequest,
   type ValuationVehicleInput
@@ -84,21 +84,59 @@ const detailFields = [
 ] as const;
 
 export function ValuationWorkspace() {
-  const snapshot = useSyncExternalStore(
-    subscribeToValuationRequests,
-    getValuationSnapshot,
-    getServerValuationSnapshot
-  );
-  const requests = useMemo(() => parseValuationSnapshot(snapshot), [snapshot]);
+  const [requests, setRequests] = useState<ValuationRequest[]>([]);
   const [vehicle, setVehicle] = useState(initialVehicle);
   const [contact, setContact] = useState(initialContact);
   const [activeId, setActiveId] = useState("");
   const [sellerMessage, setSellerMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [askingPriceByRequest, setAskingPriceByRequest] = useState<Record<string, string>>({});
   const [publishMessage, setPublishMessage] = useState("");
   const [publishError, setPublishError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadRequests() {
+      try {
+        const nextRequests = sortValuationRequests(await fetchSellerValuations());
+
+        if (!isMounted) {
+          return;
+        }
+
+        setRequests(nextRequests);
+        setActiveId((currentId) =>
+          nextRequests.some((request) => request.id === currentId)
+            ? currentId
+            : nextRequests[0]?.id ?? ""
+        );
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : "เนเธกเนเธชเธฒเธกเธฒเธฃเธ–เนเธซเธฅเธ”เธเธณเธเธญเธเธฃเธฐเน€เธกเธดเธเนเธ”เน"
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadRequests();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const activeRequest =
     requests.find((request) => request.id === activeId) ?? requests[0] ?? null;
@@ -123,7 +161,7 @@ export function ValuationWorkspace() {
     setContact((current) => ({ ...current, [key]: value }));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage("");
     setSuccessMessage("");
@@ -138,23 +176,58 @@ export function ValuationWorkspace() {
       return;
     }
 
-    const request = createValuationRequest({ vehicle, contact });
-    setActiveId(request.id);
-    setSuccessMessage("สร้างคำขอเรียบร้อยแล้ว คุณกำหนดราคาขายและลงประกาศได้ทันทีจากช่องด้านล่าง");
+    setIsSubmitting(true);
+
+    try {
+      const request = await createSellerValuation(getStoredAccessToken(), {
+        vehicle,
+        contact
+      });
+
+      setRequests((currentRequests) =>
+        upsertValuationRequest(currentRequests, request)
+      );
+      setActiveId(request.id);
+      setSuccessMessage("สร้างคำขอเรียบร้อยแล้ว คุณกำหนดราคาขายและลงประกาศได้ทันทีจากช่องด้านล่าง");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "ไม่สามารถสร้างคำขอประเมินได้"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
-  function handleSendSellerMessage() {
+  async function handleSendSellerMessage() {
     const text = sellerMessage.trim();
-    if (!activeRequest || !text) {
+    if (!activeRequest || !text || isSending) {
       return;
     }
 
-    addSellerValuationMessage(activeRequest.id, text);
-    setSellerMessage("");
+    setIsSending(true);
+
+    try {
+      const request = await addSellerValuationMessageApi(activeRequest.id, text);
+
+      setRequests((currentRequests) =>
+        upsertValuationRequest(currentRequests, request)
+      );
+      setSellerMessage("");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "ไม่สามารถส่งข้อความได้"
+      );
+    } finally {
+      setIsSending(false);
+    }
   }
 
-  function handlePublishListing() {
-    if (!activeRequest) {
+  async function handlePublishListing() {
+    if (!activeRequest || isPublishing) {
       return;
     }
 
@@ -167,15 +240,34 @@ export function ValuationWorkspace() {
       return;
     }
 
-    const listing = publishValuationAsListing(activeRequest.id, parsedAskingPrice);
-    if (!listing) {
-      setPublishError("ยังไม่พบข้อมูลรถสำหรับสร้างประกาศ กรุณาลองส่งข้อมูลใหม่อีกครั้ง");
-      return;
-    }
+    setIsPublishing(true);
 
-    setPublishMessage(
-      `สร้างประกาศเรียบร้อย เลขอ้างอิง ${listing.id} เผยแพร่แล้วที่ราคา ${formatTHB(listing.priceTHB)}`
-    );
+    try {
+      const request = await publishSellerValuationApi(
+        activeRequest.id,
+        parsedAskingPrice
+      );
+      const listing = request.listing;
+
+      setRequests((currentRequests) =>
+        upsertValuationRequest(currentRequests, request)
+      );
+
+      if (!listing) {
+        setPublishError("ยังไม่พบข้อมูลรถสำหรับสร้างประกาศ กรุณาลองส่งข้อมูลใหม่อีกครั้ง");
+        return;
+      }
+
+      setPublishMessage(
+        `สร้างประกาศเรียบร้อย เลขอ้างอิง ${listing.id} เผยแพร่แล้วที่ราคา ${formatTHB(listing.priceTHB)}`
+      );
+    } catch (error) {
+      setPublishError(
+        error instanceof Error ? error.message : "ไม่สามารถลงประกาศได้"
+      );
+    } finally {
+      setIsPublishing(false);
+    }
   }
 
   function handleSelectRequest(requestId: string) {
@@ -295,10 +387,20 @@ export function ValuationWorkspace() {
               {successMessage}
             </p>
           ) : null}
+          {isLoading ? (
+            <p className="rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-600">
+              กำลังโหลดคำขอประเมินจากฐานข้อมูล...
+            </p>
+          ) : null}
 
-          <Button className="h-12 w-full text-base sm:w-fit" type="submit" variant="premium">
+          <Button
+            className="h-12 w-full text-base sm:w-fit"
+            disabled={isSubmitting}
+            type="submit"
+            variant="premium"
+          >
             <Sparkles />
-            ประเมินราคาเบื้องต้น
+            {isSubmitting ? "กำลังบันทึก..." : "ประเมินราคาเบื้องต้น"}
           </Button>
         </form>
 
@@ -581,6 +683,20 @@ function PriceRow({ label, value }: { label: string; value: number }) {
       <span className="font-semibold text-zinc-950">{formatTHB(value)}</span>
     </div>
   );
+}
+
+function upsertValuationRequest(
+  requests: ValuationRequest[],
+  request: ValuationRequest
+) {
+  return sortValuationRequests([
+    request,
+    ...requests.filter((item) => item.id !== request.id)
+  ]);
+}
+
+function sortValuationRequests(requests: ValuationRequest[]) {
+  return [...requests].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 function parsePrice(value: string) {

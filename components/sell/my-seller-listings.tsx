@@ -2,32 +2,59 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { Calendar, Gauge, MapPin } from "lucide-react";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { fetchSellerListings } from "@/lib/client-api";
 import { formatCurrencyTHB, formatMileageKM } from "@/lib/formatters";
 import { sellerListingToApiVehicle } from "@/lib/seller-vehicle-mapper";
-import {
-  getSellerListingsSnapshot,
-  getServerSellerListingsSnapshot,
-  parseSellerListings,
-  subscribeToSellerListings
-} from "@/lib/valuation-storage";
+import type { ApiVehicle } from "@/lib/api-types";
 
 export function MySellerListings() {
-  const sellerListingsSnapshot = useSyncExternalStore(
-    subscribeToSellerListings,
-    getSellerListingsSnapshot,
-    getServerSellerListingsSnapshot
-  );
-  const vehicles = useMemo(
-    () =>
-      parseSellerListings(sellerListingsSnapshot)
-        .filter((listing) => listing.status === "published")
-        .map(sellerListingToApiVehicle),
-    [sellerListingsSnapshot]
-  );
+  const [vehicles, setVehicles] = useState<ApiVehicle[]>([]);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadListings() {
+      try {
+        const listings = await fetchSellerListings();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setVehicles(
+          listings
+            .filter((listing) => listing.status === "published")
+            .map(sellerListingToApiVehicle)
+        );
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : "ไม่สามารถโหลดประกาศจากฐานข้อมูลได้"
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadListings();
+    window.addEventListener("seller-listings:refresh", loadListings);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("seller-listings:refresh", loadListings);
+    };
+  }, []);
 
   return (
     <section className="container pb-12 lg:pb-16">
@@ -49,6 +76,16 @@ export function MySellerListings() {
           </div>
         </CardHeader>
         <CardContent>
+          {errorMessage ? (
+            <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {errorMessage}
+            </p>
+          ) : null}
+          {isLoading ? (
+            <p className="mb-4 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-600">
+              กำลังโหลดประกาศจากฐานข้อมูล...
+            </p>
+          ) : null}
           {vehicles.length === 0 ? (
             <div className="flex min-h-36 items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-5 text-center text-sm leading-6 text-muted-foreground">
               ยังไม่มีรถที่คุณลงขาย เมื่อลงประกาศสำเร็จ รถจะมาแสดงในส่วนนี้ทันที

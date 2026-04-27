@@ -1,5 +1,13 @@
+import type {
+  StoredSellerListing,
+  ValuationAssessment,
+  ValuationContactInput,
+  ValuationRequest,
+  ValuationVehicleInput
+} from "@/lib/valuation-storage";
+
 type RequestOptions = {
-  body?: Record<string, unknown>;
+  body?: unknown;
   method?: "POST" | "DELETE" | "GET";
   token?: string;
 };
@@ -212,6 +220,7 @@ export async function submitSellerVehicle(
     exteriorColor: string;
     fuelType: string;
     imageNames: string[];
+    imageUrls: string[];
     interiorColor: string;
     location: string;
     mileageKM: number;
@@ -224,13 +233,113 @@ export async function submitSellerVehicle(
     year: number;
   }
 ) {
-  return request<{ id: string; status: string }>(
+  return request<{ id: string; listingId: string; status: string }>(
     {
       method: "POST",
       token: token ?? undefined,
       body
     },
     "/seller/vehicles"
+  );
+}
+
+export async function fetchSellerValuations() {
+  const payload = await request<{ requests: ValuationRequest[] }>(
+    {
+      method: "GET"
+    },
+    "/seller/valuations"
+  );
+
+  return payload.requests;
+}
+
+export async function createSellerValuation(
+  token: string | null,
+  body: {
+    contact: ValuationContactInput;
+    vehicle: ValuationVehicleInput;
+  }
+) {
+  return request<ValuationRequest>(
+    {
+      method: "POST",
+      token: token ?? undefined,
+      body
+    },
+    "/seller/valuations"
+  );
+}
+
+export async function addSellerValuationMessage(requestId: string, text: string) {
+  return request<ValuationRequest>(
+    {
+      method: "POST",
+      body: { text }
+    },
+    `/seller/valuations/${requestId}/messages`
+  );
+}
+
+export async function publishSellerValuation(
+  requestId: string,
+  askingPriceTHB: number
+) {
+  return request<ValuationRequest>(
+    {
+      method: "POST",
+      body: { askingPriceTHB }
+    },
+    `/seller/valuations/${requestId}/publish`
+  );
+}
+
+export async function addAdminValuationMessage(requestId: string, text: string) {
+  return request<ValuationRequest>(
+    {
+      method: "POST",
+      body: { text }
+    },
+    `/admin/valuations/${requestId}/messages`
+  );
+}
+
+export async function sendAdminValuationAssessment(
+  requestId: string,
+  assessment: Omit<ValuationAssessment, "estimatedAt">
+) {
+  return request<ValuationRequest>(
+    {
+      method: "POST",
+      body: assessment
+    },
+    `/admin/valuations/${requestId}/assessment`
+  );
+}
+
+export async function fetchSellerListings(category?: string) {
+  const query = new URLSearchParams();
+
+  if (category && category !== "all") {
+    query.set("category", category);
+  }
+
+  const payload = await request<{ listings: StoredSellerListing[] }>(
+    {
+      method: "GET"
+    },
+    `/seller/listings${query.toString() ? `?${query.toString()}` : ""}`
+  );
+
+  return payload.listings;
+}
+
+export async function fetchSellerListing(listingId: string) {
+  return request<StoredSellerListing>(
+    {
+      method: "GET"
+    },
+    `/seller/listings/${listingId}`
   );
 }
 

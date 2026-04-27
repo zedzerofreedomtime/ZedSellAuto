@@ -25,7 +25,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { getStoredAccessToken } from "@/lib/auth-storage";
 import { submitSellerVehicle } from "@/lib/client-api";
-import { saveDirectSellerListing } from "@/lib/valuation-storage";
 import { cn } from "@/lib/utils";
 
 const MAX_IMAGES = 7;
@@ -268,7 +267,7 @@ export function SellCarForm() {
     setIsSubmitting(true);
 
     try {
-      await submitSellerVehicle(getStoredAccessToken(), {
+      const submission = await submitSellerVehicle(getStoredAccessToken(), {
         brand: form.brand,
         model: form.model,
         year,
@@ -286,38 +285,13 @@ export function SellCarForm() {
         phone: form.phone,
         email: form.email,
         description: form.description,
-        imageNames: images.map((image) => image.name)
+        imageNames: images.map((image) => image.name),
+        imageUrls: images.map((image) => image.dataUrl)
       });
-
-      const localListing = saveDirectSellerListing({
-        contact: {
-          email: form.email,
-          phone: form.phone,
-          sellerName: form.sellerName
-        },
-        imageUrls: images.map((image) => image.dataUrl),
-        priceTHB,
-        vehicle: {
-          brand: form.brand,
-          model: form.model,
-          year: form.year,
-          expectedPriceTHB: form.priceTHB,
-          location: form.location,
-          mileageKM: form.mileageKM,
-          transmission: form.transmission,
-          fuelType: form.fuelType,
-          driveTrain: form.driveTrain,
-          engine: form.engine,
-          exteriorColor: form.exteriorColor,
-          interiorColor: form.interiorColor,
-          ownerSummary: form.ownerSummary,
-          conditionSummary: form.description,
-          description: form.description
-        }
-      });
+      window.dispatchEvent(new Event("seller-listings:refresh"));
       setImages([]);
       setForm(initialFormState);
-      setSuccessMessage(`สร้างประกาศเรียบร้อย เลขอ้างอิง ${localListing.id} ผู้ขายกำหนดราคาเองได้และพร้อมคุยต่อรองกับผู้ซื้อ`);
+      setSuccessMessage(`สร้างประกาศเรียบร้อย เลขอ้างอิง ${submission.listingId} ผู้ขายกำหนดราคาเองได้และพร้อมคุยต่อรองกับผู้ซื้อ`);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
